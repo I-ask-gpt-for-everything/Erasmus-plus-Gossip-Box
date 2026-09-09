@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Defaults to requiring approval when the settings doc hasn't been created yet,
+    // matching the client's DEFAULT_MODERATION_SETTINGS.
+    function moderationRequiresApproval() {
+      let settings = get(/databases/$(database)/documents/settings/moderation);
+      return !settings.exists() || settings.data.requireApproval != false;
+    }
+
+    match /posts/{postId} {
+      // A post is publicly visible only once approved; admins can also read
+      // pending/rejected posts for the moderation queue.
+      allow read: if resource.data.status == 'approved' || isAdmin();
+
+      allow create: if request.resource.data.keys().hasOnly(
+                        ['text', 'imageUrl', 'nsfw', 'createdAt', 'expiresAt', 'status', 'reactions']
+                      )
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 280
+                      && request.resource.data.nsfw is bool
+                      && request.resource.data.reactions == {}
+                      && request.resource.data.status ==
+                          (moderationRequiresApproval() ? 'pending' : 'approved');
+
+      // Admins may approve/reject (status only). Anyone may update reaction counts.
+      allow update: if (isAdmin()
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                          && request.resource.data.status in ['approved', 'rejected'])
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+
+      allow delete: if false;
+    }
+
+    match /settings/moderation {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Bootstrap the first admin manually from the Firebase console (create a doc here
+    // with the admin's Auth uid as the document id). No client can write this collection.
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}
