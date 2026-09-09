@@ -10,8 +10,8 @@ service cloud.firestore {
     // Defaults to requiring approval when the settings doc hasn't been created yet,
     // matching the client's DEFAULT_MODERATION_SETTINGS.
     function moderationRequiresApproval() {
-      let settings = get(/databases/$(database)/documents/settings/moderation);
-      return !settings.exists() || settings.data.requireApproval != false;
+      return !exists(/databases/$(database)/documents/settings/moderation) ||
+        get(/databases/$(database)/documents/settings/moderation).data.requireApproval != false;
     }
 
     match /posts/{postId} {
