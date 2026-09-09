@@ -2,18 +2,20 @@ import { isFirebaseConfigured } from "./firebase";
 import { GossipPost, ModerationSettings, NewPostInput } from "./types";
 import {
   localSubscribeToPosts,
-  localSubscribeToPendingPosts,
+  localSubscribeToAllPosts,
   localCreatePost,
   localToggleReaction,
+  localAddComment,
   localSetPostStatus,
   localSubscribeModerationSettings,
   localSetRequireApproval,
 } from "./localBackend";
 import {
   firestoreSubscribeToPosts,
-  firestoreSubscribeToPendingPosts,
+  firestoreSubscribeToAllPosts,
   firestoreCreatePost,
   firestoreToggleReaction,
+  firestoreAddComment,
   firestoreSetPostStatus,
   firestoreSubscribeModerationSettings,
   firestoreSetRequireApproval,
@@ -30,12 +32,14 @@ export function subscribeToPosts(
     : localSubscribeToPosts(callback);
 }
 
-export function subscribeToPendingPosts(
+// Admin-only: every post regardless of status (dashboard overview, "All
+// gossips" tab, printing).
+export function subscribeToAllPosts(
   callback: (posts: GossipPost[]) => void
 ): () => void {
   return isFirebaseConfigured
-    ? firestoreSubscribeToPendingPosts(callback)
-    : localSubscribeToPendingPosts(callback);
+    ? firestoreSubscribeToAllPosts(callback)
+    : localSubscribeToAllPosts(callback);
 }
 
 export function subscribeModerationSettings(
@@ -60,6 +64,12 @@ export function toggleReaction(postId: string, emoji: string): Promise<void> {
   return isFirebaseConfigured
     ? firestoreToggleReaction(postId, emoji)
     : localToggleReaction(postId, emoji);
+}
+
+export function addComment(postId: string, text: string): Promise<void> {
+  return isFirebaseConfigured
+    ? firestoreAddComment(postId, text)
+    : localAddComment(postId, text);
 }
 
 export function approvePost(postId: string): Promise<void> {

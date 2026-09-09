@@ -5,13 +5,15 @@ import Image from "next/image";
 import { GossipPost } from "@/lib/types";
 import { formatRelativeTime, formatTimeRemaining } from "@/lib/time";
 import ReactionBar from "./ReactionBar";
+import CommentSection from "./CommentSection";
 
 interface PostCardProps {
   post: GossipPost;
   onReact: (id: string, emoji: string) => void;
+  onAddComment: (id: string, text: string) => Promise<void>;
 }
 
-export default function PostCard({ post, onReact }: PostCardProps) {
+export default function PostCard({ post, onReact, onAddComment }: PostCardProps) {
   const [revealed, setRevealed] = useState(false);
   const blurred = post.nsfw && !revealed;
   const timeRemaining = formatTimeRemaining(post.expiresAt);
@@ -72,6 +74,8 @@ export default function PostCard({ post, onReact }: PostCardProps) {
           <ReactionBar postId={post.id} reactions={post.reactions} onToggle={onReact} />
         </div>
       </div>
+
+      <CommentSection postId={post.id} comments={post.comments} onAddComment={onAddComment} />
     </article>
   );
 }

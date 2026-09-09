@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -20,10 +21,12 @@ import {
 import { auth, db, storage } from "./firebase";
 import {
   DEFAULT_MODERATION_SETTINGS,
+  GossipComment,
   GossipPost,
   ModerationSettings,
   NewPostInput,
   PostStatus,
+  isPostExpired,
   visibilityToExpiresAt,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
@@ -36,10 +39,7 @@ interface PostDoc {
   expiresAt: Timestamp | null;
   status: PostStatus;
   reactions: Record<string, number>;
-}
-
-function notLive(post: GossipPost): boolean {
-  return post.expiresAt !== null && post.expiresAt < Date.now();
+  comments: GossipComment[];
 }
 
 function toPost(id: string, data: PostDoc): GossipPost {
@@ -52,6 +52,7 @@ function toPost(id: string, data: PostDoc): GossipPost {
     expiresAt: data.expiresAt ? data.expiresAt.toMillis() : null,
     status: data.status ?? "approved",
     reactions: data.reactions ?? {},
+    comments: data.comments ?? [],
   };
 }
 
@@ -66,22 +67,31 @@ export function firestoreSubscribeToPosts(
   return onSnapshot(q, (snapshot) => {
     const posts = snapshot.docs
       .map((d) => toPost(d.id, d.data() as PostDoc))
-      .filter((p) => !notLive(p));
+      .filter((p) => !isPostExpired(p));
     callback(posts);
   });
 }
 
-export function firestoreSubscribeToPendingPosts(
+// Admin-only: every post regardless of status, for the dashboard overview,
+// the "All gossips" tab, and printing. This query has no `where("status", ...)`
+// clause, so Firestore can't prove every possible matched document is
+// readable by a non-admin (the `read` rule depends on the per-document
+// `status` field) and rejects the whole request with permission-denied for
+// them, rather than silently trimming to the approved subset — only call
+// this once `subscribeAdminSession` has confirmed the caller is an admin.
+export function firestoreSubscribeToAllPosts(
   callback: (posts: GossipPost[]) => void
 ): () => void {
-  const q = query(
-    collection(db!, "posts"),
-    where("status", "==", "pending"),
-    orderBy("createdAt", "asc")
+  const q = query(collection(db!, "posts"), orderBy("createdAt", "desc"));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map((d) => toPost(d.id, d.data() as PostDoc)));
+    },
+    (error) => {
+      console.error("firestoreSubscribeToAllPosts listener error:", error);
+    }
   );
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map((d) => toPost(d.id, d.data() as PostDoc)));
-  });
 }
 
 async function readModerationSettings(): Promise<ModerationSettings> {
@@ -131,7 +141,18 @@ export async function firestoreCreatePost(input: NewPostInput): Promise<void> {
     expiresAt: expiresAt ? Timestamp.fromMillis(expiresAt) : null,
     status: requireApproval ? "pending" : "approved",
     reactions: {},
+    comments: [],
   } satisfies PostDoc);
+}
+
+// arrayUnion() appends atomically server-side, so concurrent commenters
+// can't race and clobber each other's entry the way the reactions
+// read-modify-write above can — no transaction needed.
+export async function firestoreAddComment(postId: string, text: string): Promise<void> {
+  const comment: GossipComment = { id: crypto.randomUUID(), text, createdAt: Date.now() };
+  await updateDoc(doc(db!, "posts", postId), {
+    comments: arrayUnion(comment),
+  });
 }
 
 export async function firestoreToggleReaction(

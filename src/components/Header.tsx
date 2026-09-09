@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 interface HeaderProps {
   showNsfw: boolean;
   onToggleNsfw: (value: boolean) => void;
@@ -25,6 +27,18 @@ export default function Header({ showNsfw, onToggleNsfw, isDemoMode }: HeaderPro
               Local demo mode
             </span>
           )}
+          <Link
+            href="/messages"
+            className="text-xs text-white/50 hover:text-white whitespace-nowrap"
+          >
+            💌 Kind Words
+          </Link>
+          <Link
+            href="/admin"
+            className="text-xs text-white/50 hover:text-white whitespace-nowrap"
+          >
+            ⚙️ Admin
+          </Link>
           <label className="flex items-center gap-2 text-xs text-white/60">
             <span className="whitespace-nowrap">Show NSFW</span>
             <input

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import Header from "./Header";
 import PostCard from "./PostCard";
 import ComposeModal from "./ComposeModal";
@@ -11,6 +10,7 @@ import {
   subscribeModerationSettings,
   createPost,
   toggleReaction,
+  addComment,
   isFirebaseConfigured,
 } from "@/lib/postsStore";
 
@@ -71,17 +71,16 @@ export default function GossipFeed() {
         ) : (
           <div className="columns-1 sm:columns-2 gap-4">
             {visiblePosts.map((post) => (
-              <PostCard key={post.id} post={post} onReact={toggleReaction} />
+              <PostCard
+                key={post.id}
+                post={post}
+                onReact={toggleReaction}
+                onAddComment={addComment}
+              />
             ))}
           </div>
         )}
       </main>
-
-      <footer className="py-4 text-center">
-        <Link href="/admin" className="text-[11px] text-white/20 hover:text-white/40">
-          admin
-        </Link>
-      </footer>
 
       <button
         onClick={() => setComposing(true)}

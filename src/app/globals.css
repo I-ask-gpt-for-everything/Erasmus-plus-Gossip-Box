@@ -17,3 +17,16 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* The admin dashboard's print/export feature renders a dedicated white,
+   black-on-white printable view (see AdminDashboard.tsx) and hides the rest
+   of the app's dark UI via print:hidden — but the dark body background
+   itself sits underneath all of that and, with "background graphics"
+   enabled in the browser's print settings, would otherwise bleed into the
+   printed page's margins. Force it white for print regardless of which
+   page is being printed. */
+@media print {
+  body {
+    background: #fff;
+  }
+}

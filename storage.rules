@@ -7,5 +7,11 @@ service firebase.storage {
       allow write: if request.resource.size < 8 * 1024 * 1024
                     && request.resource.contentType.matches('image/.*');
     }
+
+    match /message-photos/{photoId} {
+      allow read: if true;
+      allow write: if request.resource.size < 8 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+    }
   }
 }

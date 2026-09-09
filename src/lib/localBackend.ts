@@ -4,6 +4,7 @@ import {
   GossipPost,
   ModerationSettings,
   NewPostInput,
+  isPostExpired,
   visibilityToExpiresAt,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
@@ -19,7 +20,10 @@ function readPosts(): GossipPost[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(POSTS_KEY);
-    return raw ? (JSON.parse(raw) as GossipPost[]) : [];
+    if (!raw) return [];
+    const posts = JSON.parse(raw) as GossipPost[];
+    // Backfill `comments` for posts saved before the field existed.
+    return posts.map((p) => (p.comments ? p : { ...p, comments: [] }));
   } catch {
     return [];
   }
@@ -30,21 +34,10 @@ function writePosts(posts: GossipPost[]) {
   bus.dispatchEvent(new Event("change"));
 }
 
-function notLive(post: GossipPost): boolean {
-  return post.expiresAt !== null && post.expiresAt < Date.now();
-}
-
 function emitApproved(callback: (posts: GossipPost[]) => void) {
   const posts = readPosts()
-    .filter((p) => p.status === "approved" && !notLive(p))
+    .filter((p) => p.status === "approved" && !isPostExpired(p))
     .sort((a, b) => b.createdAt - a.createdAt);
-  callback(posts);
-}
-
-function emitPending(callback: (posts: GossipPost[]) => void) {
-  const posts = readPosts()
-    .filter((p) => p.status === "pending")
-    .sort((a, b) => a.createdAt - b.createdAt);
   callback(posts);
 }
 
@@ -61,11 +54,16 @@ export function localSubscribeToPosts(
   };
 }
 
-export function localSubscribeToPendingPosts(
+function emitAll(callback: (posts: GossipPost[]) => void) {
+  const posts = readPosts().sort((a, b) => b.createdAt - a.createdAt);
+  callback(posts);
+}
+
+export function localSubscribeToAllPosts(
   callback: (posts: GossipPost[]) => void
 ): () => void {
-  emitPending(callback);
-  const handler = () => emitPending(callback);
+  emitAll(callback);
+  const handler = () => emitAll(callback);
   bus.addEventListener("change", handler);
   window.addEventListener("storage", handler);
   return () => {
@@ -120,6 +118,7 @@ export async function localCreatePost(input: NewPostInput): Promise<void> {
     expiresAt: visibilityToExpiresAt(input.visibility, now),
     status: requireApproval ? "pending" : "approved",
     reactions: {},
+    comments: [],
   };
   const posts = readPosts();
   posts.push(post);
@@ -137,6 +136,14 @@ export async function localToggleReaction(
   const nowActive = toggleMyReaction(postId, emoji);
   const current = post.reactions[emoji] ?? 0;
   post.reactions[emoji] = Math.max(0, current + (nowActive ? 1 : -1));
+  writePosts(posts);
+}
+
+export async function localAddComment(postId: string, text: string): Promise<void> {
+  const posts = readPosts();
+  const post = posts.find((p) => p.id === postId);
+  if (!post) return;
+  post.comments.push({ id: uuid(), text, createdAt: Date.now() });
   writePosts(posts);
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { subscribeAdminSession } from "@/lib/adminAuth";
 import AdminLogin from "@/components/AdminLogin";
-import AdminPanel from "@/components/AdminPanel";
+import AdminDashboard from "@/components/AdminDashboard";
 
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -14,5 +14,5 @@ export default function AdminPage() {
     return <div className="min-h-screen bg-neutral-950" />;
   }
 
-  return isAdmin ? <AdminPanel /> : <AdminLogin />;
+  return isAdmin ? <AdminDashboard /> : <AdminLogin />;
 }

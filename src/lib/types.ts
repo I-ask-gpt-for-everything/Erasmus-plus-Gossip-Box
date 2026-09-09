@@ -5,6 +5,14 @@ export type PostStatus = "pending" | "approved" | "rejected";
 export const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "🔥", "👍"] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
 
+export const MAX_COMMENT_LENGTH = 200;
+
+export interface GossipComment {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
 export interface GossipPost {
   id: string;
   text: string;
@@ -14,6 +22,7 @@ export interface GossipPost {
   expiresAt: number | null;
   status: PostStatus;
   reactions: Record<string, number>;
+  comments: GossipComment[];
 }
 
 export interface NewPostInput {
@@ -37,6 +46,27 @@ export const VISIBILITY_LABELS: Record<VisibilityDuration, string> = {
   "24h": "24 hours",
   forever: "Forever",
 };
+
+export const MAX_MESSAGE_LENGTH = 600;
+export const MAX_MESSAGE_NAME_LENGTH = 60;
+
+export interface KindMessage {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  text: string;
+  createdAt: number;
+}
+
+export interface NewMessageInput {
+  name: string;
+  text: string;
+  photoDataUrl: string | null;
+}
+
+export function isPostExpired(post: Pick<GossipPost, "expiresAt">): boolean {
+  return post.expiresAt !== null && post.expiresAt < Date.now();
+}
 
 export function visibilityToExpiresAt(
   visibility: VisibilityDuration,

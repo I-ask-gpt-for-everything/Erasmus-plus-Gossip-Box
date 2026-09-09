@@ -3,11 +3,17 @@
 An anonymous gossip board. Anyone can post a short text gossip, optionally
 with an image and emoji, mark it NSFW, and choose how long it stays
 visible. No accounts, no names — just a feed. New posts can require admin
-approval before they go public.
+approval before they go public. Every post also has its own anonymous
+comment thread (collapsed by default, tap "💬" to open it).
 
 This is a first prototype built from a whiteboard sketch: a feed grid of
 posts with emoji reactions, a floating "+" to post, an NSFW flag, and
 image + time-visibility controls.
+
+Alongside it is **Kind Words** (`/messages`) — the opposite of the gossip
+feed: named, not anonymous. Anyone can leave a paragraph-length message
+with their name and an optional photo, no moderation. The two sections
+cross-link each other in their headers.
 
 ## Stack
 
@@ -58,12 +64,28 @@ with a time-limited visibility are actually deleted server-side — the app
 already hides expired posts client-side, but a TTL policy cleans up the
 underlying documents.
 
-## Admin approval
+## Admin dashboard
+
+Signing in at **`/admin`** opens a small dashboard with four tabs:
+
+- **Overview** — counts of total / pending / approved / rejected / NSFW gossips.
+- **Pending** — the approve/reject review queue.
+- **All gossips** — every post regardless of status, filterable, with the
+  ability to retroactively approve/reject any post (e.g. take down an
+  already-approved one).
+- **Settings** — the moderation toggle described below, plus **print
+  memories**: filter by status to browse candidates, check off exactly the
+  gossips you want (a "Select all" button bulk-adds everything currently
+  filtered), then Print. The output is a keepsake-style page — one card
+  per gossip with its photo, date, and reaction counts, not just a plain
+  text dump (browser print dialog, so "Save as PDF" works too). The tab
+  bar is where future admin sections — e.g. a contact information page —
+  are expected to be added.
 
 Every new gossip is created with a `status` of `pending` or `approved`,
 controlled by a moderation setting ("Require approval before a gossip
 goes public") that defaults to **on**. The public feed only shows
-`approved` posts; an admin reviews `pending` ones at **`/admin`** and
+`approved` posts; an admin reviews `pending` ones on the Pending tab and
 approves or rejects each one, and can flip the moderation setting off to
 let posts publish immediately instead.
 
@@ -88,6 +110,15 @@ bootstrap your first admin:
 
 Additional admins are added the same way (steps 1–3) by an existing admin
 or project owner.
+
+## Kind Words
+
+`/messages` is a separate, unmoderated board — anyone can post a name +
+paragraph + optional photo and it's live immediately, no admin approval
+step, no NSFW flag, no expiry. It's stored in its own `messages`
+Firestore collection / `gossipbox_messages` localStorage key, uploads
+photos to a separate `message-photos/` Storage path, and isn't part of
+the admin dashboard at all — there's nothing to moderate there yet.
 
 ## Deploying to Vercel
 
