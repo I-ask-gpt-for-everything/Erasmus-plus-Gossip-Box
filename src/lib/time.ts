@@ -14,15 +14,3 @@ export function formatRelativeTime(ms: number): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
-
-export function formatTimeRemaining(expiresAt: number | null): string | null {
-  if (expiresAt === null) return null;
-  const diff = expiresAt - Date.now();
-  if (diff <= 0) return "expiring…";
-
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `vanishes in ${minutes}m`;
-
-  const hours = Math.floor(minutes / 60);
-  return `vanishes in ${hours}h`;
-}

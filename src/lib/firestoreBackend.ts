@@ -26,8 +26,6 @@ import {
   ModerationSettings,
   NewPostInput,
   PostStatus,
-  isPostExpired,
-  visibilityToExpiresAt,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
 
@@ -36,7 +34,6 @@ interface PostDoc {
   imageUrl: string | null;
   nsfw: boolean;
   createdAt: Timestamp;
-  expiresAt: Timestamp | null;
   status: PostStatus;
   reactions: Record<string, number>;
   comments: GossipComment[];
@@ -49,7 +46,6 @@ function toPost(id: string, data: PostDoc): GossipPost {
     imageUrl: data.imageUrl,
     nsfw: data.nsfw,
     createdAt: data.createdAt?.toMillis() ?? Date.now(),
-    expiresAt: data.expiresAt ? data.expiresAt.toMillis() : null,
     status: data.status ?? "approved",
     reactions: data.reactions ?? {},
     comments: data.comments ?? [],
@@ -65,9 +61,7 @@ export function firestoreSubscribeToPosts(
     orderBy("createdAt", "desc")
   );
   return onSnapshot(q, (snapshot) => {
-    const posts = snapshot.docs
-      .map((d) => toPost(d.id, d.data() as PostDoc))
-      .filter((p) => !isPostExpired(p));
+    const posts = snapshot.docs.map((d) => toPost(d.id, d.data() as PostDoc));
     callback(posts);
   });
 }
@@ -130,7 +124,6 @@ export async function firestoreCreatePost(input: NewPostInput): Promise<void> {
   }
 
   const now = Date.now();
-  const expiresAt = visibilityToExpiresAt(input.visibility, now);
   const { requireApproval } = await readModerationSettings();
 
   await addDoc(collection(db!, "posts"), {
@@ -138,7 +131,6 @@ export async function firestoreCreatePost(input: NewPostInput): Promise<void> {
     imageUrl,
     nsfw: input.nsfw,
     createdAt: Timestamp.fromMillis(now),
-    expiresAt: expiresAt ? Timestamp.fromMillis(expiresAt) : null,
     status: requireApproval ? "pending" : "approved",
     reactions: {},
     comments: [],

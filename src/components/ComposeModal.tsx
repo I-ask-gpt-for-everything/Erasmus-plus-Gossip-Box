@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { NewPostInput, VISIBILITY_LABELS, VisibilityDuration } from "@/lib/types";
+import { NewPostInput } from "@/lib/types";
 import EmojiPicker from "./EmojiPicker";
 
 const MAX_LENGTH = 280;
@@ -21,7 +21,6 @@ export default function ComposeModal({
   const [text, setText] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [nsfw, setNsfw] = useState(false);
-  const [visibility, setVisibility] = useState<VisibilityDuration>("24h");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -54,7 +53,7 @@ export default function ComposeModal({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onSubmit({ text: text.trim(), imageDataUrl, nsfw, visibility });
+      await onSubmit({ text: text.trim(), imageDataUrl, nsfw });
       onClose();
     } finally {
       setSubmitting(false);
@@ -136,21 +135,6 @@ export default function ComposeModal({
           />
           Mark as NSFW
         </label>
-
-        <div className="flex items-center gap-2 text-sm text-white/70">
-          <span className="whitespace-nowrap">Visible for</span>
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value as VisibilityDuration)}
-            className="flex-1 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-white outline-none"
-          >
-            {Object.entries(VISIBILITY_LABELS).map(([value, label]) => (
-              <option key={value} value={value} className="bg-neutral-900">
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
 
         {requireApproval && (
           <p className="text-xs text-amber-300/80">

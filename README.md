@@ -1,14 +1,14 @@
 # GossipBox
 
 An anonymous gossip board. Anyone can post a short text gossip, optionally
-with an image and emoji, mark it NSFW, and choose how long it stays
-visible. No accounts, no names — just a feed. New posts can require admin
-approval before they go public. Every post also has its own anonymous
-comment thread (collapsed by default, tap "💬" to open it).
+with an image and emoji, and mark it NSFW. No accounts, no names — just a
+feed, sorted newest-first, where every post stays visible forever. New
+posts can require admin approval before they go public. Every post also
+has its own anonymous comment thread (collapsed by default, tap "💬" to
+open it).
 
 This is a first prototype built from a whiteboard sketch: a feed grid of
-posts with emoji reactions, a floating "+" to post, an NSFW flag, and
-image + time-visibility controls.
+posts with emoji reactions, a floating "+" to post, and an NSFW flag.
 
 Alongside it is **Kind Words** (`/messages`) — the opposite of the gossip
 feed: named, not anonymous. Anyone can leave a paragraph-length message
@@ -58,11 +58,6 @@ prototype, it just won't sync between devices/browsers.
    ```
 5. Restart `npm run dev`. The app now reads/writes real Firestore data and
    uploads images to Storage in real time.
-
-(Optional) Set a Firestore TTL policy on the `expiresAt` field so posts
-with a time-limited visibility are actually deleted server-side — the app
-already hides expired posts client-side, but a TTL policy cleans up the
-underlying documents.
 
 ## Admin dashboard
 

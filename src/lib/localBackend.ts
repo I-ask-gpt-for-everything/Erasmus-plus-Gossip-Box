@@ -4,8 +4,6 @@ import {
   GossipPost,
   ModerationSettings,
   NewPostInput,
-  isPostExpired,
-  visibilityToExpiresAt,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
 
@@ -36,7 +34,7 @@ function writePosts(posts: GossipPost[]) {
 
 function emitApproved(callback: (posts: GossipPost[]) => void) {
   const posts = readPosts()
-    .filter((p) => p.status === "approved" && !isPostExpired(p))
+    .filter((p) => p.status === "approved")
     .sort((a, b) => b.createdAt - a.createdAt);
   callback(posts);
 }
@@ -115,7 +113,6 @@ export async function localCreatePost(input: NewPostInput): Promise<void> {
     imageUrl: input.imageDataUrl,
     nsfw: input.nsfw,
     createdAt: now,
-    expiresAt: visibilityToExpiresAt(input.visibility, now),
     status: requireApproval ? "pending" : "approved",
     reactions: {},
     comments: [],

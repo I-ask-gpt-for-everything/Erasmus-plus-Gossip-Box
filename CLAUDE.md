@@ -8,9 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 GossipBox — an anonymous gossip board (Next.js App Router + TypeScript +
 Tailwind, deployed to Vercel, backed by Firebase). Anyone can post a short
-text gossip with optional image and emoji, mark it NSFW, and choose how
-long it stays visible. New posts can require admin approval before they
-go public. A second, unrelated section — Kind Words (`/messages`) — sits
+text gossip with optional image and emoji, and mark it NSFW. Posts stay
+visible forever and the feed is sorted newest-first by `createdAt`. New
+posts can require admin approval before they go public. A second, unrelated section — Kind Words (`/messages`) — sits
 alongside it: named (not anonymous) paragraph messages with an optional
 photo, no moderation. See [README.md](README.md) for the full feature/setup
 writeup.
@@ -64,7 +64,7 @@ Kind Words (`KindMessage`) follows the identical split but as its own
 sibling set of files — `localMessagesBackend.ts` /
 `firestoreMessagesBackend.ts` / `messagesStore.ts` — rather than being
 folded into the posts files above. Posts and messages are unrelated
-domains (no moderation, no reactions, no expiry on messages) that happen
+domains (no moderation, no reactions on messages) that happen
 to share the same dual-backend *pattern*; keep them in separate files
 rather than merging, and follow this same sibling-files approach for any
 future third domain instead of growing `postsStore.ts` to cover it.
@@ -196,12 +196,10 @@ project until redeployed. Key invariants encoded there:
   is on screen.
 
 Types are centralized in `src/lib/types.ts` (`GossipPost`, `PostStatus`,
-`ModerationSettings`, `VisibilityDuration` + `visibilityToExpiresAt`,
-`REACTION_EMOJIS`, `isPostExpired`, `KindMessage`, `NewMessageInput`) —
-read it first when touching the data model. `isPostExpired` is the one
-shared expiry check (`expiresAt !== null && expiresAt < Date.now()`);
-both backends and `AdminDashboard` import it rather than each defining
-their own copy.
+`ModerationSettings`, `REACTION_EMOJIS`, `KindMessage`, `NewMessageInput`)
+— read it first when touching the data model. Posts have no expiry field;
+both backends sort/query by `createdAt` descending and every approved
+post stays in the feed forever.
 
 ## Kind Words (`/messages`)
 
@@ -210,7 +208,7 @@ A second, independent board — `src/app/messages/page.tsx` renders
 `GossipFeed` (same subscribe-in-`useEffect` + floating "+" + toast
 pattern) but for `KindMessage`s instead of `GossipPost`s: `name` +
 `text` (paragraph, up to `MAX_MESSAGE_LENGTH`) + optional `photoUrl`, no
-`nsfw`, no `visibility`/expiry, no `reactions`, no moderation `status` —
+`nsfw`, no `reactions`, no moderation `status` —
 messages publish immediately on create. `MessageCard` shows the photo, or
 an initial-letter avatar (`bg-rose-500/20` circle) when none was
 attached. `ComposeMessageModal` is the compose form. `Header.tsx`

@@ -20,7 +20,7 @@ service cloud.firestore {
       allow read: if resource.data.status == 'approved' || isAdmin();
 
       allow create: if request.resource.data.keys().hasOnly(
-                        ['text', 'imageUrl', 'nsfw', 'createdAt', 'expiresAt', 'status', 'reactions', 'comments']
+                        ['text', 'imageUrl', 'nsfw', 'createdAt', 'status', 'reactions', 'comments']
                       )
                       && request.resource.data.text is string
                       && request.resource.data.text.size() > 0

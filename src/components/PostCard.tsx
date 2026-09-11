@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { GossipPost } from "@/lib/types";
-import { formatRelativeTime, formatTimeRemaining } from "@/lib/time";
+import { formatRelativeTime } from "@/lib/time";
 import ReactionBar from "./ReactionBar";
 import CommentSection from "./CommentSection";
 
@@ -16,15 +16,11 @@ interface PostCardProps {
 export default function PostCard({ post, onReact, onAddComment }: PostCardProps) {
   const [revealed, setRevealed] = useState(false);
   const blurred = post.nsfw && !revealed;
-  const timeRemaining = formatTimeRemaining(post.expiresAt);
 
   return (
     <article className="break-inside-avoid mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 flex flex-col gap-3 shadow-lg shadow-black/20">
       <div className="flex items-center justify-between text-xs text-white/50">
         <span>{formatRelativeTime(post.createdAt)}</span>
-        {timeRemaining && (
-          <span className="text-amber-300/80">{timeRemaining}</span>
-        )}
       </div>
 
       <div className="relative">

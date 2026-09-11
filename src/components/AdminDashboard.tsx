@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  DEFAULT_MODERATION_SETTINGS,
-  GossipPost,
-  PostStatus,
-  isPostExpired,
-} from "@/lib/types";
+import { DEFAULT_MODERATION_SETTINGS, GossipPost, PostStatus } from "@/lib/types";
 import {
   subscribeToAllPosts,
   subscribeModerationSettings,
@@ -253,11 +248,6 @@ export default function AdminDashboard() {
                       {post.nsfw && (
                         <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-300">
                           NSFW
-                        </span>
-                      )}
-                      {isPostExpired(post) && (
-                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">
-                          Expired
                         </span>
                       )}
                       <span className="ml-auto">{formatRelativeTime(post.createdAt)}</span>
