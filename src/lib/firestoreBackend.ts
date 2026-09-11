@@ -185,6 +185,15 @@ export async function firestoreSetNsfw(postId: string, nsfw: boolean): Promise<v
 
 // --- Admin auth (Firebase Authentication + an `admins/{uid}` allowlist doc) ---
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  "auth/invalid-credential": "Incorrect password.",
+  "auth/wrong-password": "Incorrect password.",
+  "auth/user-not-found": "No account found for this email.",
+  "auth/operation-not-allowed": "Email/Password sign-in isn't enabled for this project yet.",
+  "auth/too-many-requests": "Too many attempts — try again in a bit.",
+  "auth/user-disabled": "This account has been disabled.",
+};
+
 export async function firestoreAdminLogin(
   email: string,
   password: string
@@ -197,8 +206,12 @@ export async function firestoreAdminLogin(
       return { ok: false, error: "This account is not an approved admin." };
     }
     return { ok: true };
-  } catch {
-    return { ok: false, error: "Invalid email or password." };
+  } catch (err) {
+    const code = (err as { code?: string } | undefined)?.code;
+    return {
+      ok: false,
+      error: (code && AUTH_ERROR_MESSAGES[code]) || `Sign-in failed${code ? ` (${code})` : ""}.`,
+    };
   }
 }
 
