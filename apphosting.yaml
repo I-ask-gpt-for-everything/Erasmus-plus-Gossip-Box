@@ -1,0 +1,43 @@
+# Firebase App Hosting build/runtime configuration.
+#
+# Next.js inlines NEXT_PUBLIC_* vars into the client bundle at BUILD time,
+# so they must be declared here (not just in the git-ignored .env.local,
+# which the remote App Hosting build never sees) or the app silently falls
+# back to localStorage-only mode in production — see the isFirebaseConfigured
+# check in src/lib/firebase.ts and the "Architecture: dual-backend data
+# layer" section of CLAUDE.md.
+#
+# These are Firebase's public web config values, not secrets — they're
+# safe to commit. The real security boundary is firestore.rules/storage.rules,
+# not hiding this config (see Firebase's own docs on this).
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyCURR0veoMqQQW1TwAIfGWZSbtOHuC3GWc
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: erasmus-plus-gossip-box.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: erasmus-plus-gossip-box
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: erasmus-plus-gossip-box.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "644889800262"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:644889800262:web:d249de420308c24e45a447"
+    availability:
+      - BUILD
+      - RUNTIME
