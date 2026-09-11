@@ -161,7 +161,7 @@ export async function localSetPostStatus(
 // --- Local demo-mode admin session (passcode gate; not real security) ---
 
 const LOCAL_ADMIN_PASSCODE =
-  process.env.NEXT_PUBLIC_LOCAL_ADMIN_PASSCODE || "admin1234";
+  process.env.NEXT_PUBLIC_LOCAL_ADMIN_PASSCODE || "alexissmart";
 
 export function localIsAdminSession(): boolean {
   if (typeof window === "undefined") return false;

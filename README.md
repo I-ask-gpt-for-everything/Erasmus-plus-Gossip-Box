@@ -89,8 +89,8 @@ goes public") that defaults to **on**. The public feed only shows
 approves or rejects each one, and can flip the moderation setting off to
 let posts publish immediately instead.
 
-**Local demo mode:** `/admin` is protected by a simple passcode (default
-`admin1234`, override with `NEXT_PUBLIC_LOCAL_ADMIN_PASSCODE`). This is
+**Local demo mode:** `/admin` is protected by a simple passcode (override
+with `NEXT_PUBLIC_LOCAL_ADMIN_PASSCODE`). This is
 just a UX gate for the prototype, not real security — fine since all the
 data already lives only in your own browser's localStorage.
 

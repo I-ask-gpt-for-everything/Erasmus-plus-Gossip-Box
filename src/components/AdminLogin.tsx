@@ -33,8 +33,7 @@ export default function AdminLogin() {
         {!isFirebaseConfigured && (
           <p className="text-xs text-amber-300/80">
             Local demo mode — this passcode gate is for the prototype only,
-            not real security. Default passcode:{" "}
-            <code className="text-amber-200">admin1234</code>
+            not real security.
           </p>
         )}
 

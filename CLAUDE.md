@@ -50,7 +50,7 @@ switched on that flag:
 
 `src/lib/adminAuth.ts` follows the same split pattern for admin sessions:
 local mode uses a passcode compared client-side (`NEXT_PUBLIC_LOCAL_ADMIN_PASSCODE`,
-default `admin1234` — not real security, acceptable only because that
+default `alexissmart` — not real security, acceptable only because that
 data never leaves the browser); Firebase mode uses real Firebase
 Authentication plus an `admins/{uid}` allowlist collection, enforced
 server-side by `firestore.rules` (not just hidden in the UI).
