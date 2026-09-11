@@ -12,7 +12,7 @@
 # not hiding this config (see Firebase's own docs on this).
 env:
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: AIzaSyCURR0veoMqQQW1TwAIfGWZSbtOHuC3GWc
+    value: AIzaSyCURROveoMqQQW1TwAIfGWZSbtOHuC3GWc
     availability:
       - BUILD
       - RUNTIME
@@ -37,7 +37,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: "1:644889800262:web:d249de420308c24e45a447"
+    value: "1:644889800262:web:5371936876d0262b45a447"
     availability:
       - BUILD
       - RUNTIME
