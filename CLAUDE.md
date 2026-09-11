@@ -10,10 +10,16 @@ GossipBox — an anonymous gossip board (Next.js App Router + TypeScript +
 Tailwind, deployed to Vercel, backed by Firebase). Anyone can post a short
 text gossip with optional image and emoji, and mark it NSFW. Posts stay
 visible forever and the feed is sorted newest-first by `createdAt`. New
-posts can require admin approval before they go public. A second, unrelated section — Kind Words (`/messages`) — sits
-alongside it: named (not anonymous) paragraph messages with an optional
-photo, no moderation. See [README.md](README.md) for the full feature/setup
-writeup.
+posts can require admin approval before they go public. Two more,
+unrelated sections sit alongside it, both named (not anonymous) and
+unmoderated: **Kind Words** (`/messages`) — a paragraph message with an
+optional photo — and **Photos & Personal Info** (`/photos`) — a photo
+link, an Instagram handle, and/or an uploaded picture. A persistent
+left `Sidebar` (all routes, `src/components/Sidebar.tsx`) links all four
+sections (`/`, `/messages`, `/photos`, `/admin`). See
+[README.md](README.md) for the full feature/setup writeup and
+[ARCHITECTURE.md](ARCHITECTURE.md) for a deeper technical reference
+(data model, security rules, routing/component maps, diagrams).
 
 ## Commands
 
@@ -60,14 +66,17 @@ Firestore implementation, then wire both into `postsStore.ts` (or
 `adminAuth.ts`) — never call `localBackend`/`firestoreBackend` directly
 from components.
 
-Kind Words (`KindMessage`) follows the identical split but as its own
-sibling set of files — `localMessagesBackend.ts` /
-`firestoreMessagesBackend.ts` / `messagesStore.ts` — rather than being
-folded into the posts files above. Posts and messages are unrelated
-domains (no moderation, no reactions on messages) that happen
-to share the same dual-backend *pattern*; keep them in separate files
-rather than merging, and follow this same sibling-files approach for any
-future third domain instead of growing `postsStore.ts` to cover it.
+Kind Words (`KindMessage`) and Photos & Personal Info (`PhotoEntry`) each
+follow the identical split but as their own sibling sets of files —
+`localMessagesBackend.ts` / `firestoreMessagesBackend.ts` /
+`messagesStore.ts`, and `localPhotosBackend.ts` /
+`firestorePhotosBackend.ts` / `photosStore.ts` — rather than being folded
+into the posts files above. Posts, messages, and photo entries are
+unrelated domains (no moderation, no reactions outside of Gossip) that
+happen to share the same dual-backend *pattern*; keep them in separate
+files rather than merging, and follow this same sibling-files approach
+for any future additional board instead of growing `postsStore.ts` to
+cover it.
 
 ## Moderation / approval workflow
 
@@ -152,9 +161,24 @@ project until redeployed. Key invariants encoded there:
   way `posts` validates `text`. Storage mirrors this with a
   `message-photos/{photoId}` path (same 8MB/image-type check as
   `gossip-images/{imageId}`) in `storage.rules`.
+- `photoEntries/{entryId}` (Photos & Personal Info) follows the same
+  always-readable, `create`-only shape as `messages`, but its `create`
+  rule additionally requires `username` plus at least one of a non-empty
+  `text`, a non-empty `photoLink`, or a non-null `photoUrl` — mirroring
+  the client's `canSubmit` check in `ComposePhotoEntryModal.tsx`. Storage
+  mirrors this with a `photo-entries/{photoId}` path (same 8MB/image-type
+  check as the other two media paths) in `storage.rules`.
 
 ## Component structure
 
+- `Sidebar` (`src/components/Sidebar.tsx`) is mounted once at the layout
+  level (`src/app/layout.tsx`), not per-page — it's the persistent left
+  nav across all four routes (`/`, `/messages`, `/photos`, `/admin`) via a
+  static `NAV_ITEMS` array, collapsing to an icon-only rail below the `sm`
+  breakpoint. It's also where the "Local demo mode" badge and all
+  cross-board navigation live now — see the note at the end of the "Kind
+  Words" section below if you're looking for where boards link to each
+  other.
 - `GossipFeed` (`src/components/GossipFeed.tsx`) is the main client
   orchestrator: subscribes to posts + moderation settings, owns the NSFW
   filter and compose-modal state, shows a post-submit toast.
@@ -196,7 +220,8 @@ project until redeployed. Key invariants encoded there:
   is on screen.
 
 Types are centralized in `src/lib/types.ts` (`GossipPost`, `PostStatus`,
-`ModerationSettings`, `REACTION_EMOJIS`, `KindMessage`, `NewMessageInput`)
+`ModerationSettings`, `REACTION_EMOJIS`, `KindMessage`, `NewMessageInput`,
+`PhotoEntry`, `NewPhotoEntryInput`)
 — read it first when touching the data model. Posts have no expiry field;
 both backends sort/query by `createdAt` descending and every approved
 post stays in the feed forever.
@@ -211,9 +236,29 @@ pattern) but for `KindMessage`s instead of `GossipPost`s: `name` +
 `nsfw`, no `reactions`, no moderation `status` —
 messages publish immediately on create. `MessageCard` shows the photo, or
 an initial-letter avatar (`bg-rose-500/20` circle) when none was
-attached. `ComposeMessageModal` is the compose form. `Header.tsx`
-(Gossip's header) and `KindWordsBoard`'s own header cross-link `/` and
-`/messages` — if you rename either route, update both links. This board
-is intentionally outside the admin dashboard entirely: no pending queue,
-no print/export, no stats tile — `AdminDashboard.tsx` only ever deals
-with `GossipPost`s.
+attached. `ComposeMessageModal` is the compose form. Cross-board
+navigation lives in the global `Sidebar` (see "Component structure"
+above), not in `Header.tsx` or a board's own header — if you rename a
+route, update `NAV_ITEMS` in `Sidebar.tsx`. This board is intentionally
+outside the admin dashboard entirely: no pending queue, no print/export,
+no stats tile — `AdminDashboard.tsx` only ever deals with `GossipPost`s.
+
+## Photos & Personal Info (`/photos`)
+
+A third independent board, structurally identical to Kind Words but with
+more optional fields — `src/app/photos/page.tsx` renders `PhotosBoard`,
+which follows the same subscribe-in-`useEffect` + floating "+" + toast
+pattern for `PhotoEntry` instead of `KindMessage`: `username` (required)
+plus *any combination* of `text`, a pasted `photoLink` (rendered as a
+plain clickable link, not necessarily an image), an `instagram` handle
+(rendered as a link to `instagram.com/<handle>`, accepting either a bare
+handle or a full URL — see `instagramHref()` in `PhotoEntryCard.tsx`),
+and/or an actual uploaded `photoUrl`. The compose form's submit button
+requires `username` plus **at least one** of `text` / `photoLink` /
+uploaded photo (see `canSubmit` in `ComposePhotoEntryModal.tsx`) — unlike
+Kind Words, where `text` alone is mandatory. `PhotoEntryCard` shows the
+uploaded photo, or an initial-letter avatar (`bg-sky-500/20` circle,
+Photos' accent color vs. Kind Words' rose) when none was attached. No
+`nsfw`, no `reactions`, no moderation `status` — entries publish
+immediately, and this board is outside the admin dashboard the same way
+Kind Words is.

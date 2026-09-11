@@ -8,12 +8,21 @@ has its own anonymous comment thread (collapsed by default, tap "💬" to
 open it).
 
 This is a first prototype built from a whiteboard sketch: a feed grid of
-posts with emoji reactions, a floating "+" to post, and an NSFW flag.
+posts with emoji reactions, a floating "+" to post, and an NSFW flag. See
+[ARCHITECTURE.md](ARCHITECTURE.md) for a technical deep-dive (data model,
+security rules, dual-backend design) if you're extending the app.
 
-Alongside it is **Kind Words** (`/messages`) — the opposite of the gossip
-feed: named, not anonymous. Anyone can leave a paragraph-length message
-with their name and an optional photo, no moderation. The two sections
-cross-link each other in their headers.
+Alongside it are two more, unrelated sections — the opposite of the
+gossip feed: named, not anonymous, and unmoderated.
+
+- **Kind Words** (`/messages`) — anyone can leave a paragraph-length
+  message with their name and an optional photo.
+- **Photos & Personal Info** (`/photos`) — anyone can share a username
+  plus any combination of a message, a pasted photo link, an Instagram
+  handle, and/or an uploaded picture.
+
+A persistent left sidebar (icon-only on mobile) links all three sections
+plus `/admin`.
 
 ## Stack
 
@@ -114,6 +123,18 @@ step, no NSFW flag, no expiry. It's stored in its own `messages`
 Firestore collection / `gossipbox_messages` localStorage key, uploads
 photos to a separate `message-photos/` Storage path, and isn't part of
 the admin dashboard at all — there's nothing to moderate there yet.
+
+## Photos & Personal Info
+
+`/photos` is a third, similarly unmoderated board for sharing a username
+plus any combination of a message, a pasted photo link (shown as a plain
+link, not necessarily an image), an Instagram handle, and an uploaded
+picture — at least one of those besides the username is required to
+post. Live immediately, same as Kind Words: no approval step, no NSFW
+flag, no expiry. Stored in its own `photoEntries` Firestore collection /
+`gossipbox_photo_entries` localStorage key, uploads pictures to a
+`photo-entries/` Storage path, and also isn't part of the admin
+dashboard.
 
 ## Deploying to Vercel
 
