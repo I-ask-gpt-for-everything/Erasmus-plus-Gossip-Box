@@ -101,19 +101,27 @@ data already lives only in your own browser's localStorage.
 **With Firebase configured:** `/admin` requires signing in with Firebase
 Authentication, and only accounts listed in the `admins` collection can
 actually approve/reject posts or change the moderation setting — this is
-enforced server-side by `firestore.rules`, not just hidden in the UI. To
-bootstrap your first admin:
+enforced server-side by `firestore.rules`, not just hidden in the UI.
+Since this app only ever has one admin account, the login screen only
+asks for a **password**; it signs in with a fixed email address baked in
+as `ADMIN_EMAIL` in `src/components/AdminLogin.tsx` (override via
+`NEXT_PUBLIC_ADMIN_EMAIL` if you want a different address). To bootstrap
+your admin account:
 
-1. In the Firebase console, go to **Authentication → Users → Add user**
-   and create an email/password account for yourself.
-2. Copy that user's UID.
-3. In **Firestore Database**, create a document at `admins/<uid>` (any
+1. In the Firebase console, go to **Authentication → Sign-in method** and
+   enable the **Email/Password** provider (if it isn't already).
+2. Go to **Authentication → Users → Add user**, using the same email as
+   `ADMIN_EMAIL`/`NEXT_PUBLIC_ADMIN_EMAIL`, and choose your own password.
+3. Copy that user's UID.
+4. In **Firestore Database**, create a document at `admins/<uid>` (any
    fields, e.g. `{ email: "you@example.com" }` — only its existence is
    checked).
-4. Sign in at `/admin` with that email/password.
+5. Sign in at `/admin` with that password.
 
-Additional admins are added the same way (steps 1–3) by an existing admin
-or project owner.
+A second admin needs their own email — either change `ADMIN_EMAIL` to a
+shared account both of you know the password for, or extend
+`AdminLogin.tsx` back to an email+password form if you want distinct
+per-person accounts.
 
 ## Kind Words
 

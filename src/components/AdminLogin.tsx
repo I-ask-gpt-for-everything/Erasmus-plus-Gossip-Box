@@ -4,9 +4,15 @@ import { useState, FormEvent } from "react";
 import { adminLogin } from "@/lib/adminAuth";
 import { isFirebaseConfigured } from "@/lib/postsStore";
 
+// Firebase Authentication needs an email identifier, but this app only ever
+// has one admin account, so the login screen asks for just a password and
+// signs in with this fixed email behind the scenes — still real Firebase
+// Auth, still enforced server-side by the admins/{uid} allowlist in
+// firestore.rules, just one less field to type.
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "alex.papailiiopoulos@gmail.com";
+
 export default function AdminLogin() {
   const [passcode, setPasscode] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -16,7 +22,7 @@ export default function AdminLogin() {
     setError(null);
     setLoading(true);
     const result = isFirebaseConfigured
-      ? await adminLogin({ mode: "firebase", email, password })
+      ? await adminLogin({ mode: "firebase", email: ADMIN_EMAIL, password })
       : await adminLogin({ mode: "local", passcode });
     setLoading(false);
     if (!result.ok) setError(result.error ?? "Login failed.");
@@ -31,22 +37,13 @@ export default function AdminLogin() {
         <h1 className="text-lg font-semibold text-white">Admin sign in</h1>
 
         {isFirebaseConfigured ? (
-          <>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30"
-            />
-          </>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30"
+          />
         ) : (
           <input
             type="password"
