@@ -69,6 +69,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /photoEntries/{entryId} {
+      // Photos & Personal Info board: like Kind Words, named and unmoderated.
+      // Each entry needs a username plus at least one of a message, a pasted
+      // photo link, or an uploaded picture.
+      allow read: if true;
+
+      allow create: if request.resource.data.keys().hasOnly(
+                        ['username', 'text', 'photoLink', 'instagram', 'photoUrl', 'createdAt']
+                      )
+                      && request.resource.data.username is string
+                      && request.resource.data.username.size() > 0
+                      && request.resource.data.username.size() <= 60
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 600
+                      && (request.resource.data.photoLink == null
+                          || (request.resource.data.photoLink is string
+                              && request.resource.data.photoLink.size() <= 500))
+                      && (request.resource.data.instagram == null
+                          || (request.resource.data.instagram is string
+                              && request.resource.data.instagram.size() <= 40))
+                      && (request.resource.data.text.size() > 0
+                          || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
+                          || request.resource.data.photoUrl != null);
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
     match /settings/moderation {
       allow read: if true;
       allow write: if isAdmin();

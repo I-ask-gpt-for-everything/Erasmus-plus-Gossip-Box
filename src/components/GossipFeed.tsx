@@ -11,7 +11,6 @@ import {
   createPost,
   toggleReaction,
   addComment,
-  isFirebaseConfigured,
 } from "@/lib/postsStore";
 
 export default function GossipFeed() {
@@ -50,11 +49,7 @@ export default function GossipFeed() {
 
   return (
     <div className="min-h-screen bg-neutral-950 flex flex-col">
-      <Header
-        showNsfw={showNsfw}
-        onToggleNsfw={setShowNsfw}
-        isDemoMode={!isFirebaseConfigured}
-      />
+      <Header showNsfw={showNsfw} onToggleNsfw={setShowNsfw} />
 
       {toast && (
         <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-neutral-800 border border-white/10 px-4 py-2 text-sm text-white shadow-lg">

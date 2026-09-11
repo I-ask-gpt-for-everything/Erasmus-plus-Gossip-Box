@@ -64,6 +64,33 @@ export interface NewMessageInput {
   photoDataUrl: string | null;
 }
 
+export const MAX_PHOTO_ENTRY_TEXT_LENGTH = 600;
+export const MAX_PHOTO_ENTRY_USERNAME_LENGTH = 60;
+export const MAX_PHOTO_LINK_LENGTH = 500;
+export const MAX_INSTAGRAM_HANDLE_LENGTH = 40;
+
+// Photos & Personal Info board: like Kind Words, named and unmoderated, but
+// each entry can carry a pasted photo link (shown as plain text/a link,
+// not necessarily an uploadable image), an Instagram handle, and/or an
+// actual uploaded picture — any combination alongside the username.
+export interface PhotoEntry {
+  id: string;
+  username: string;
+  text: string;
+  photoLink: string | null;
+  instagram: string | null;
+  photoUrl: string | null;
+  createdAt: number;
+}
+
+export interface NewPhotoEntryInput {
+  username: string;
+  text: string;
+  photoLink: string | null;
+  instagram: string | null;
+  photoDataUrl: string | null;
+}
+
 export function isPostExpired(post: Pick<GossipPost, "expiresAt">): boolean {
   return post.expiresAt !== null && post.expiresAt < Date.now();
 }
