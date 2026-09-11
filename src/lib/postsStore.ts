@@ -1,5 +1,5 @@
 import { isFirebaseConfigured } from "./firebase";
-import { GossipPost, ModerationSettings, NewPostInput } from "./types";
+import { GossipPost, ModerationSettings, NewPostInput, VisibilitySettings } from "./types";
 import {
   localSubscribeToPosts,
   localSubscribeToAllPosts,
@@ -7,8 +7,10 @@ import {
   localToggleReaction,
   localAddComment,
   localSetPostStatus,
+  localSetNsfw,
   localSubscribeModerationSettings,
   localSetRequireApproval,
+  localSetVisibilityWindow,
 } from "./localBackend";
 import {
   firestoreSubscribeToPosts,
@@ -17,8 +19,10 @@ import {
   firestoreToggleReaction,
   firestoreAddComment,
   firestoreSetPostStatus,
+  firestoreSetNsfw,
   firestoreSubscribeModerationSettings,
   firestoreSetRequireApproval,
+  firestoreSetVisibilityWindow,
 } from "./firestoreBackend";
 
 export { getMyReactions } from "./reactionTracker";
@@ -54,6 +58,18 @@ export function setRequireApproval(value: boolean): Promise<void> {
   return isFirebaseConfigured
     ? firestoreSetRequireApproval(value)
     : localSetRequireApproval(value);
+}
+
+export function setVisibilityWindow(value: VisibilitySettings): Promise<void> {
+  return isFirebaseConfigured
+    ? firestoreSetVisibilityWindow(value)
+    : localSetVisibilityWindow(value);
+}
+
+export function setNsfw(postId: string, nsfw: boolean): Promise<void> {
+  return isFirebaseConfigured
+    ? firestoreSetNsfw(postId, nsfw)
+    : localSetNsfw(postId, nsfw);
 }
 
 export function createPost(input: NewPostInput): Promise<void> {

@@ -4,6 +4,7 @@ import {
   GossipPost,
   ModerationSettings,
   NewPostInput,
+  VisibilitySettings,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
 
@@ -104,6 +105,17 @@ export async function localSetRequireApproval(value: boolean): Promise<void> {
   bus.dispatchEvent(new Event("change"));
 }
 
+export async function localSetVisibilityWindow(
+  value: VisibilitySettings
+): Promise<void> {
+  const current = localReadModerationSettings();
+  window.localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({ ...current, visibilityWindow: value })
+  );
+  bus.dispatchEvent(new Event("change"));
+}
+
 export async function localCreatePost(input: NewPostInput): Promise<void> {
   const now = Date.now();
   const { requireApproval } = localReadModerationSettings();
@@ -152,6 +164,14 @@ export async function localSetPostStatus(
   const post = posts.find((p) => p.id === postId);
   if (!post) return;
   post.status = status;
+  writePosts(posts);
+}
+
+export async function localSetNsfw(postId: string, nsfw: boolean): Promise<void> {
+  const posts = readPosts();
+  const post = posts.find((p) => p.id === postId);
+  if (!post) return;
+  post.nsfw = nsfw;
   writePosts(posts);
 }
 

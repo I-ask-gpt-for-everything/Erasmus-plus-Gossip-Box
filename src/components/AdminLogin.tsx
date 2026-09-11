@@ -30,13 +30,6 @@ export default function AdminLogin() {
       >
         <h1 className="text-lg font-semibold text-white">Admin sign in</h1>
 
-        {!isFirebaseConfigured && (
-          <p className="text-xs text-amber-300/80">
-            Local demo mode — this passcode gate is for the prototype only,
-            not real security.
-          </p>
-        )}
-
         {isFirebaseConfigured ? (
           <>
             <input

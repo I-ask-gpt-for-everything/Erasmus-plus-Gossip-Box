@@ -31,14 +31,18 @@ service cloud.firestore {
                       && request.resource.data.status ==
                           (moderationRequiresApproval() ? 'pending' : 'approved');
 
-      // Admins may approve/reject (status only). Anyone may update reaction
-      // counts, and anyone may append exactly one comment at a time — the
-      // size()-grew-by-exactly-1 check blocks wholesale replacement/deletion
-      // of existing comments through this same field, and the new last
-      // entry's text is length-validated the same way post text is above.
+      // Admins may approve/reject (status only) or override the nsfw flag.
+      // Anyone may update reaction counts, and anyone may append exactly one
+      // comment at a time — the size()-grew-by-exactly-1 check blocks
+      // wholesale replacement/deletion of existing comments through this
+      // same field, and the new last entry's text is length-validated the
+      // same way post text is above.
       allow update: if (isAdmin()
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                           && request.resource.data.status in ['approved', 'rejected'])
+                      || (isAdmin()
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nsfw'])
+                          && request.resource.data.nsfw is bool)
                       || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments'])
                           && request.resource.data.comments.size() == resource.data.comments.size() + 1

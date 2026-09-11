@@ -82,8 +82,8 @@ button `disabled` state) are UX only. See "Security model" below.
 Nothing to configure beyond environment variables:
 
 - **Local demo mode** — no `NEXT_PUBLIC_FIREBASE_*` vars set (or emptied).
-  Every board shows an amber "Local demo mode" badge. Data lives only in
-  that browser.
+  Data lives only in that browser (no UI indicator distinguishes this from
+  Firebase mode).
 - **Firebase mode** — all six `NEXT_PUBLIC_FIREBASE_*` vars set in
   `.env.local` (or the hosting platform's env config). Restart the dev
   server / redeploy for the change to take effect (Next.js inlines
@@ -140,11 +140,9 @@ Sidebar is defined once at the layout level, not per-page.
 top-0 h-screen`, `print:hidden`) covering all four routes via a static
 `NAV_ITEMS` array (`Gossip 🤫`, `Kind Words 💌`, `Photos & Personal Info
 📸`, `Admin ⚙️`). It collapses to an icon-only rail below the `sm`
-breakpoint (labels are `hidden sm:inline`) and shows the "Local demo mode"
-badge (full pill on desktop, a single 🟡 on mobile) when
-`!isFirebaseConfigured`. Active-route highlighting compares
-`usePathname()` against each item's `href` (`/` matches exactly; every
-other route matches by prefix).
+breakpoint (labels are `hidden sm:inline`). Active-route highlighting
+compares `usePathname()` against each item's `href` (`/` matches exactly;
+every other route matches by prefix).
 
 Each board's own in-page `<header>` (in `GossipFeed`/`KindWordsBoard`/
 `PhotosBoard`) is now purely a title/subtitle/local-mode-badge bar — the

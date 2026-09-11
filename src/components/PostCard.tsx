@@ -11,14 +11,38 @@ interface PostCardProps {
   post: GossipPost;
   onReact: (id: string, emoji: string) => void;
   onAddComment: (id: string, text: string) => Promise<void>;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export default function PostCard({ post, onReact, onAddComment }: PostCardProps) {
+export default function PostCard({
+  post,
+  onReact,
+  onAddComment,
+  selectable,
+  selected,
+  onToggleSelect,
+}: PostCardProps) {
   const [revealed, setRevealed] = useState(false);
   const blurred = post.nsfw && !revealed;
 
   return (
-    <article className="break-inside-avoid mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 flex flex-col gap-3 shadow-lg shadow-black/20">
+    <article className="relative break-inside-avoid mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 flex flex-col gap-3 shadow-lg shadow-black/20">
+      {selectable && (
+        <label
+          className="absolute right-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60"
+          aria-label={selected ? "Deselect for printing" : "Select for printing"}
+        >
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect?.(post.id)}
+            className="h-4 w-4 rounded accent-rose-500"
+          />
+        </label>
+      )}
+
       <div className="flex items-center justify-between text-xs text-white/50">
         <span>{formatRelativeTime(post.createdAt)}</span>
       </div>

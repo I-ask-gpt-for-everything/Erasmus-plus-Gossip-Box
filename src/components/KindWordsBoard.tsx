@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import MessageCard from "./MessageCard";
 import ComposeMessageModal from "./ComposeMessageModal";
 import { KindMessage, NewMessageInput } from "@/lib/types";
-import { subscribeToMessages, createMessage, isFirebaseConfigured } from "@/lib/messagesStore";
+import { subscribeToMessages, createMessage } from "@/lib/messagesStore";
 
 export default function KindWordsBoard() {
   const [messages, setMessages] = useState<KindMessage[]>([]);
@@ -32,12 +32,6 @@ export default function KindWordsBoard() {
             <h1 className="text-xl font-bold text-white tracking-tight">💌 Kind Words</h1>
             <p className="text-xs text-white/40">Leave a message, with your name on it</p>
           </div>
-
-          {!isFirebaseConfigured && (
-            <span className="hidden sm:inline rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
-              Local demo mode
-            </span>
-          )}
         </div>
       </header>
 

@@ -8,18 +8,22 @@ import {
   subscribeToAllPosts,
   subscribeModerationSettings,
   setRequireApproval,
+  setVisibilityWindow,
+  setNsfw,
   approvePost,
   rejectPost,
 } from "@/lib/postsStore";
 import { adminLogout } from "@/lib/adminAuth";
-import { formatRelativeTime } from "@/lib/time";
+import { formatRelativeTime, minutesToTimeString, timeStringToMinutes } from "@/lib/time";
+import PrintableGossips from "./PrintableGossips";
 
-type TabId = "overview" | "pending" | "all" | "settings";
+type TabId = "overview" | "pending" | "all" | "trash" | "settings";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "pending", label: "Pending" },
   { id: "all", label: "All gossips" },
+  { id: "trash", label: "Trash" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -47,6 +51,20 @@ function StatusBadge({ status }: { status: PostStatus }) {
   );
 }
 
+function NsfwToggle({ postId, nsfw }: { postId: string; nsfw: boolean }) {
+  return (
+    <label className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-300">
+      <input
+        type="checkbox"
+        checked={nsfw}
+        onChange={(e) => setNsfw(postId, e.target.checked)}
+        className="h-3 w-3 rounded accent-rose-400"
+      />
+      NSFW
+    </label>
+  );
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [allPosts, setAllPosts] = useState<GossipPost[]>([]);
@@ -63,6 +81,14 @@ export default function AdminDashboard() {
       allPosts
         .filter((p) => p.status === "pending")
         .sort((a, b) => a.createdAt - b.createdAt),
+    [allPosts]
+  );
+
+  const rejected = useMemo(
+    () =>
+      allPosts
+        .filter((p) => p.status === "rejected")
+        .sort((a, b) => b.createdAt - a.createdAt),
     [allPosts]
   );
 
@@ -149,6 +175,11 @@ export default function AdminDashboard() {
                     {pending.length}
                   </span>
                 )}
+                {tab.id === "trash" && rejected.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-white/60">
+                    {rejected.length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -179,11 +210,7 @@ export default function AdminDashboard() {
                   >
                     <div className="flex items-center justify-between text-xs text-white/50">
                       <span>{formatRelativeTime(post.createdAt)}</span>
-                      {post.nsfw && (
-                        <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-300">
-                          NSFW
-                        </span>
-                      )}
+                      <NsfwToggle postId={post.id} nsfw={post.nsfw} />
                     </div>
                     <p className="whitespace-pre-wrap text-sm text-white/90">{post.text}</p>
                     {post.imageUrl && (
@@ -245,11 +272,7 @@ export default function AdminDashboard() {
                   >
                     <div className="flex items-center gap-2 text-xs text-white/50">
                       <StatusBadge status={post.status} />
-                      {post.nsfw && (
-                        <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-300">
-                          NSFW
-                        </span>
-                      )}
+                      <NsfwToggle postId={post.id} nsfw={post.nsfw} />
                       <span className="ml-auto">{formatRelativeTime(post.createdAt)}</span>
                     </div>
                     <p className="whitespace-pre-wrap text-sm text-white/90">{post.text}</p>
@@ -287,6 +310,47 @@ export default function AdminDashboard() {
             </section>
           )}
 
+          {activeTab === "trash" && (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold text-white">
+                Trash {rejected.length > 0 && `(${rejected.length})`}
+              </h2>
+
+              {rejected.length === 0 ? (
+                <p className="text-sm text-white/40">Trash is empty.</p>
+              ) : (
+                rejected.map((post) => (
+                  <div
+                    key={post.id}
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
+                  >
+                    <div className="flex items-center justify-between text-xs text-white/50">
+                      <span>{formatRelativeTime(post.createdAt)}</span>
+                      <NsfwToggle postId={post.id} nsfw={post.nsfw} />
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm text-white/90">{post.text}</p>
+                    {post.imageUrl && (
+                      <Image
+                        src={post.imageUrl}
+                        alt=""
+                        width={600}
+                        height={400}
+                        unoptimized
+                        className="max-h-56 w-full rounded-xl object-cover"
+                      />
+                    )}
+                    <button
+                      onClick={() => approvePost(post.id)}
+                      className="rounded-lg bg-emerald-500/20 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30"
+                    >
+                      ♻️ Restore
+                    </button>
+                  </div>
+                ))
+              )}
+            </section>
+          )}
+
           {activeTab === "settings" && (
             <section className="flex flex-col gap-4">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -300,6 +364,55 @@ export default function AdminDashboard() {
                     className="h-4 w-4 shrink-0 rounded accent-rose-500"
                   />
                 </label>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <h2 className="mb-2 text-sm font-semibold text-white">Visibility window</h2>
+                <p className="mb-3 text-xs text-white/40">
+                  Only show approved gossips to everyone during a daily window
+                  (Gothenburg time). Default is visible all day.
+                </p>
+                <label className="flex items-center justify-between gap-4 text-sm text-white/70">
+                  <span>Limit visibility to a daily time window</span>
+                  <input
+                    type="checkbox"
+                    checked={moderation.visibilityWindow.enabled}
+                    onChange={(e) =>
+                      setVisibilityWindow({
+                        ...moderation.visibilityWindow,
+                        enabled: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 shrink-0 rounded accent-rose-500"
+                  />
+                </label>
+                {moderation.visibilityWindow.enabled && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={minutesToTimeString(moderation.visibilityWindow.startMinutes)}
+                      onChange={(e) =>
+                        setVisibilityWindow({
+                          ...moderation.visibilityWindow,
+                          startMinutes: timeStringToMinutes(e.target.value),
+                        })
+                      }
+                      className="rounded-lg border border-white/10 bg-neutral-900 px-2 py-1.5 text-xs text-white/70"
+                    />
+                    <span className="text-xs text-white/40">to</span>
+                    <input
+                      type="time"
+                      value={minutesToTimeString(moderation.visibilityWindow.endMinutes)}
+                      onChange={(e) =>
+                        setVisibilityWindow({
+                          ...moderation.visibilityWindow,
+                          endMinutes: timeStringToMinutes(e.target.value),
+                        })
+                      }
+                      className="rounded-lg border border-white/10 bg-neutral-900 px-2 py-1.5 text-xs text-white/70"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -389,68 +502,7 @@ export default function AdminDashboard() {
           shown exclusively when printing, independent of which tab is active,
           so the "Print" button in Settings always produces the right output
           regardless of on-screen state. */}
-      <div className="hidden print:block bg-white p-8 text-black">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold">💌 GossipBox Memories</h1>
-          <p className="text-sm text-neutral-500">
-            {printPosts.length} gossip{printPosts.length === 1 ? "" : "s"} · printed{" "}
-            {new Date().toLocaleDateString(undefined, {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        </div>
-
-        {printPosts.length === 0 ? (
-          <p className="text-center text-sm text-neutral-400">No gossips selected.</p>
-        ) : (
-          printPosts.map((post) => {
-            const reactionEntries = Object.entries(post.reactions).filter(
-              ([, count]) => count > 0
-            );
-            return (
-              <div
-                key={post.id}
-                className="mb-6 break-inside-avoid rounded-2xl border border-neutral-300 p-5"
-              >
-                <div className="mb-3 flex items-center justify-between text-xs text-neutral-400">
-                  <span>
-                    {new Date(post.createdAt).toLocaleDateString(undefined, {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                  {post.nsfw && (
-                    <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
-                      NSFW
-                    </span>
-                  )}
-                </div>
-                {post.imageUrl && (
-                  <Image
-                    src={post.imageUrl}
-                    alt=""
-                    width={800}
-                    height={500}
-                    unoptimized
-                    className="mb-3 max-h-80 w-full rounded-xl object-cover"
-                  />
-                )}
-                <p className="whitespace-pre-wrap text-base leading-relaxed text-neutral-900">
-                  {post.text}
-                </p>
-                {reactionEntries.length > 0 && (
-                  <p className="mt-3 text-sm text-neutral-500">
-                    {reactionEntries.map(([emoji, count]) => `${emoji} ${count}`).join("   ")}
-                  </p>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      <PrintableGossips posts={printPosts} />
     </>
   );
 }

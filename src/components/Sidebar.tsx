@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isFirebaseConfigured } from "@/lib/firebase";
 
 const NAV_ITEMS = [
   { href: "/", label: "Gossip", icon: "🤫" },
@@ -44,17 +43,6 @@ export default function Sidebar() {
           );
         })}
       </nav>
-
-      {!isFirebaseConfigured && (
-        <div className="px-2 pb-5 sm:px-4">
-          <span className="hidden sm:inline rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
-            Local demo mode
-          </span>
-          <span className="sm:hidden block text-center text-[10px]" title="Local demo mode">
-            🟡
-          </span>
-        </div>
-      )}
     </aside>
   );
 }

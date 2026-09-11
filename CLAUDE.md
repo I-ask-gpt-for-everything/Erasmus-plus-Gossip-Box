@@ -175,10 +175,9 @@ project until redeployed. Key invariants encoded there:
   level (`src/app/layout.tsx`), not per-page — it's the persistent left
   nav across all four routes (`/`, `/messages`, `/photos`, `/admin`) via a
   static `NAV_ITEMS` array, collapsing to an icon-only rail below the `sm`
-  breakpoint. It's also where the "Local demo mode" badge and all
-  cross-board navigation live now — see the note at the end of the "Kind
-  Words" section below if you're looking for where boards link to each
-  other.
+  breakpoint. It's also where all cross-board navigation lives now — see
+  the note at the end of the "Kind Words" section below if you're looking
+  for where boards link to each other.
 - `GossipFeed` (`src/components/GossipFeed.tsx`) is the main client
   orchestrator: subscribes to posts + moderation settings, owns the NSFW
   filter and compose-modal state, shows a post-submit toast.

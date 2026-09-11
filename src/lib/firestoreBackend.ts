@@ -26,6 +26,7 @@ import {
   ModerationSettings,
   NewPostInput,
   PostStatus,
+  VisibilitySettings,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
 
@@ -114,6 +115,16 @@ export async function firestoreSetRequireApproval(value: boolean): Promise<void>
   );
 }
 
+export async function firestoreSetVisibilityWindow(
+  value: VisibilitySettings
+): Promise<void> {
+  await setDoc(
+    doc(db!, "settings", "moderation"),
+    { visibilityWindow: value },
+    { merge: true }
+  );
+}
+
 export async function firestoreCreatePost(input: NewPostInput): Promise<void> {
   let imageUrl: string | null = null;
 
@@ -166,6 +177,10 @@ export async function firestoreSetPostStatus(
   status: "approved" | "rejected"
 ): Promise<void> {
   await updateDoc(doc(db!, "posts", postId), { status });
+}
+
+export async function firestoreSetNsfw(postId: string, nsfw: boolean): Promise<void> {
+  await updateDoc(doc(db!, "posts", postId), { nsfw });
 }
 
 // --- Admin auth (Firebase Authentication + an `admins/{uid}` allowlist doc) ---

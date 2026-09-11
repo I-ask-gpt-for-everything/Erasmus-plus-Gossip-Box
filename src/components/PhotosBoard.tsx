@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import PhotoEntryCard from "./PhotoEntryCard";
 import ComposePhotoEntryModal from "./ComposePhotoEntryModal";
 import { PhotoEntry, NewPhotoEntryInput } from "@/lib/types";
-import { subscribeToPhotoEntries, createPhotoEntry, isFirebaseConfigured } from "@/lib/photosStore";
+import { subscribeToPhotoEntries, createPhotoEntry } from "@/lib/photosStore";
 
 export default function PhotosBoard() {
   const [entries, setEntries] = useState<PhotoEntry[]>([]);
@@ -36,12 +36,6 @@ export default function PhotosBoard() {
               Share a photo link, your Instagram, or a picture — with your name on it
             </p>
           </div>
-
-          {!isFirebaseConfigured && (
-            <span className="hidden sm:inline rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
-              Local demo mode
-            </span>
-          )}
         </div>
       </header>
 
