@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { KindMessage, NewMessageInput } from "./types";
+import { getAuthorId } from "./authorTracker";
 
 const MESSAGES_KEY = "gossipbox_messages";
 
@@ -9,7 +10,12 @@ function readMessages(): KindMessage[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(MESSAGES_KEY);
-    return raw ? (JSON.parse(raw) as KindMessage[]) : [];
+    if (!raw) return [];
+    return (JSON.parse(raw) as KindMessage[]).map((m) => ({
+      ...m,
+      authorId: m.authorId ?? "",
+      deleted: m.deleted ?? false,
+    }));
   } catch {
     return [];
   }
@@ -21,7 +27,9 @@ function writeMessages(messages: KindMessage[]) {
 }
 
 function emit(callback: (messages: KindMessage[]) => void) {
-  const messages = readMessages().sort((a, b) => b.createdAt - a.createdAt);
+  const messages = readMessages()
+    .filter((m) => !m.deleted)
+    .sort((a, b) => b.createdAt - a.createdAt);
   callback(messages);
 }
 
@@ -45,8 +53,27 @@ export async function localCreateMessage(input: NewMessageInput): Promise<void> 
     photoUrl: input.photoDataUrl,
     text: input.text,
     createdAt: Date.now(),
+    authorId: getAuthorId(),
   };
   const messages = readMessages();
   messages.push(message);
+  writeMessages(messages);
+}
+
+export async function localUpdateMessage(id: string, input: NewMessageInput): Promise<void> {
+  const messages = readMessages();
+  const message = messages.find((m) => m.id === id);
+  if (!message) return;
+  message.name = input.name;
+  message.text = input.text;
+  message.photoUrl = input.photoDataUrl;
+  writeMessages(messages);
+}
+
+export async function localDeleteMessage(id: string): Promise<void> {
+  const messages = readMessages();
+  const message = messages.find((m) => m.id === id);
+  if (!message) return;
+  message.deleted = true;
   writeMessages(messages);
 }

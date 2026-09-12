@@ -8,22 +8,28 @@ import {
   MAX_PHOTO_LINK_LENGTH,
   MAX_INSTAGRAM_HANDLE_LENGTH,
   NewPhotoEntryInput,
+  PhotoEntry,
 } from "@/lib/types";
 
 interface ComposePhotoEntryModalProps {
   onClose: () => void;
   onSubmit: (input: NewPhotoEntryInput) => Promise<void>;
+  initialValue?: PhotoEntry;
 }
 
 export default function ComposePhotoEntryModal({
   onClose,
   onSubmit,
+  initialValue,
 }: ComposePhotoEntryModalProps) {
-  const [username, setUsername] = useState("");
-  const [text, setText] = useState("");
-  const [photoLink, setPhotoLink] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const isEditing = !!initialValue;
+  const [username, setUsername] = useState(initialValue?.username ?? "");
+  const [text, setText] = useState(initialValue?.text ?? "");
+  const [photoLink, setPhotoLink] = useState(initialValue?.photoLink ?? "");
+  const [instagram, setInstagram] = useState(initialValue?.instagram ?? "");
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(
+    initialValue?.photoUrl ?? null
+  );
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,7 +68,9 @@ export default function ComposePhotoEntryModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
       <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-neutral-900 border border-white/10 p-5 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Share photos & info 📸</h2>
+          <h2 className="text-lg font-semibold text-white">
+            {isEditing ? "Edit your entry" : "Share photos & info 📸"}
+          </h2>
           <button
             onClick={onClose}
             className="text-white/50 hover:text-white text-xl leading-none px-2"
@@ -172,7 +180,7 @@ export default function ComposePhotoEntryModal({
           disabled={!canSubmit}
           className="mt-2 w-full rounded-xl bg-sky-500 py-3 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sky-400 transition-colors"
         >
-          {submitting ? "Posting…" : "Post"}
+          {submitting ? "Saving…" : isEditing ? "Save changes" : "Post"}
         </button>
       </div>
     </div>

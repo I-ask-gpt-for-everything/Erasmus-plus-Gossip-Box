@@ -59,6 +59,8 @@ export interface KindMessage {
   photoUrl: string | null;
   text: string;
   createdAt: number;
+  authorId: string;
+  deleted?: boolean;
 }
 
 export interface NewMessageInput {
@@ -84,6 +86,8 @@ export interface PhotoEntry {
   instagram: string | null;
   photoUrl: string | null;
   createdAt: number;
+  authorId: string;
+  deleted?: boolean;
 }
 
 export interface NewPhotoEntryInput {

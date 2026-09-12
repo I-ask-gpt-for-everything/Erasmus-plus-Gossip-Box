@@ -155,19 +155,38 @@ project until redeployed. Key invariants encoded there:
 - The `admins` collection can't be written by clients at all — the first
   admin is bootstrapped manually via the Firebase console (see README
   "Admin approval" section for the exact steps).
-- `messages/{messageId}` (Kind Words) is always publicly readable, has no
-  status/moderation gate, and rejects `update`/`delete` outright — the
-  only allowed write is `create`, field- and length-validated the same
-  way `posts` validates `text`. Storage mirrors this with a
-  `message-photos/{photoId}` path (same 8MB/image-type check as
-  `gossip-images/{imageId}`) in `storage.rules`.
+- `messages/{messageId}` (Kind Words) is publicly readable unless
+  `deleted == true` (in which case only an admin can still read it), and
+  has no status/moderation gate. `create` is field- and length-validated
+  the same way `posts` validates `text`, plus a required `authorId`
+  string (see "Editing and deleting" under Kind Words below for what
+  that is). `update` allows exactly two shapes: an author-or-admin
+  content edit (`name`/`text`/`photoUrl`, same validation as create), or
+  a soft-delete (`deleted` flipped to `true` only — never back to
+  `false` through this rule). `delete` (the real Firestore operation) is
+  still `if false` — nothing is ever hard-deleted. Storage mirrors this
+  with a `message-photos/{photoId}` path (same 8MB/image-type check as
+  `gossip-images/{imageId}`) in `storage.rules`; replacing or
+  soft-deleting a photo does **not** clean up its old Storage object
+  (matches this app's no-expiry, nothing-ever-really-goes-away posture
+  elsewhere — `deleteObject` is intentionally unused).
 - `photoEntries/{entryId}` (Photos & Personal Info) follows the same
-  always-readable, `create`-only shape as `messages`, but its `create`
-  rule additionally requires `username` plus at least one of a non-empty
+  readable-unless-`deleted`, author-or-admin-update, soft-delete-only
+  shape as `messages`, but its `create`/content-edit validation
+  additionally requires `username` plus at least one of a non-empty
   `text`, a non-empty `photoLink`, or a non-null `photoUrl` — mirroring
   the client's `canSubmit` check in `ComposePhotoEntryModal.tsx`. Storage
   mirrors this with a `photo-entries/{photoId}` path (same 8MB/image-type
   check as the other two media paths) in `storage.rules`.
+- A field check like `resource.data.get('deleted', false) != true` must
+  use `.get(key, default)`, not bare dot-access (`resource.data.deleted`)
+  — dot-accessing a field that doesn't exist on a document throws an
+  evaluation error rather than returning `null`, and an error on one
+  side of `||`/`&&` still denies the whole rule. This matters concretely
+  for every pre-existing `messages`/`photoEntries` document written
+  before the `authorId`/`deleted` fields existed: without `.get()`, the
+  read rule above would have silently denied public reads of every one
+  of them the moment it deployed.
 
 ## Component structure
 
@@ -241,6 +260,9 @@ above), not in `Header.tsx` or a board's own header — if you rename a
 route, update `NAV_ITEMS` in `Sidebar.tsx`. This board is intentionally
 outside the admin dashboard entirely: no pending queue, no print/export,
 no stats tile — `AdminDashboard.tsx` only ever deals with `GossipPost`s.
+(Admins *can* still edit/delete individual messages, just directly on
+the board itself rather than through `AdminDashboard.tsx` — see "Editing
+and deleting" below.)
 
 ## Photos & Personal Info (`/photos`)
 
@@ -260,4 +282,55 @@ uploaded photo, or an initial-letter avatar (`bg-sky-500/20` circle,
 Photos' accent color vs. Kind Words' rose) when none was attached. No
 `nsfw`, no `reactions`, no moderation `status` — entries publish
 immediately, and this board is outside the admin dashboard the same way
-Kind Words is.
+Kind Words is. Editing and deleting follow the identical mechanism
+described under Kind Words below — `updatePhotoEntry`/`deletePhotoEntry`
+in `photosStore.ts`, same `authorId`/soft-delete shape, same
+`ComposePhotoEntryModal` `initialValue` prop for edit mode.
+
+## Editing and deleting (Kind Words and Photos & Personal Info)
+
+Both boards let the original poster's own browser edit or delete their
+entry, and let a logged-in admin do the same to anyone's — this is
+**not** enforced through `AdminDashboard.tsx` (both boards stay outside
+it, per above); instead `KindWordsBoard`/`PhotosBoard` each subscribe to
+`subscribeAdminSession` directly and pass `isAdmin` straight down to
+`MessageCard`/`PhotoEntryCard`, which render edit/delete icon buttons
+whenever `isOwner || isAdmin`.
+
+"Own browser" is tracked by `src/lib/authorTracker.ts`'s `getAuthorId()`
+— a `crypto.randomUUID()` persisted in `localStorage`
+(`gossipbox_author_id`), stamped onto every `KindMessage`/`PhotoEntry` as
+`authorId` at creation, and compared client-side (`entry.authorId ===
+getAuthorId()`) to compute `isOwner`. Because both collections stay
+publicly readable (see "Firestore security rules" above), this id is
+visible to anyone who reads the document — it deters accidental/casual
+cross-editing but is **not**
+cryptographically secure against a determined actor replaying the field,
+the same class of tradeoff already accepted for reactions ("no
+server-side identity to dedupe reactions by") and the local admin
+passcode. Real per-author enforcement would need Firebase Anonymous
+Auth, which was deliberately not added here as disproportionate scope.
+
+"Delete" (`deleteMessage`/`deletePhotoEntry` in `messagesStore.ts`/
+`photosStore.ts`) is a **soft delete** — it sets `deleted: true` rather
+than calling Firestore's real `delete`, both to match the rest of this
+app's "nothing ever truly disappears" posture (rejected `GossipPost`s
+persist forever too) and because a real `delete` request carries no
+`request.resource.data`, so a `firestore.rules` `allow delete` can only
+ever check pre-existing `resource.data` — it can't validate a
+client-asserted author claim the way `allow update` can via
+`request.resource.data.diff(resource.data)`. Both backends' `emit`/
+`onSnapshot` subscriptions filter out `deleted === true` entries before
+calling back, so a soft-deleted entry simply vanishes from the feed —
+there's no undelete path in the app (only via the Firebase console).
+
+Editing reuses the same `NewMessageInput`/`NewPhotoEntryInput` shape as
+creation: `ComposeMessageModal`/`ComposePhotoEntryModal` take an optional
+`initialValue` prop that seeds form state (including the photo preview,
+straight from the existing `photoUrl`) and swaps the header/button copy
+to "Edit…"/"Save changes". The Firestore backends resolve the submitted
+photo field into one of three outcomes — `null` clears it, a `data:`
+URL means a fresh pick (upload it, same as create), anything else is the
+untouched existing `https://` URL (pass through, no re-upload). Replaced
+or removed Storage images are never cleaned up, consistent with the
+no-Storage-cleanup note above.

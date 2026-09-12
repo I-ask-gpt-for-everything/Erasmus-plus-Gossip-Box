@@ -57,30 +57,57 @@ service cloud.firestore {
       // Kind Words board: not moderated, always publicly readable/writable —
       // unlike posts, these carry the author's own name, so there's no
       // anonymity to protect and no approval workflow attached.
-      allow read: if true;
+      //
+      // Edit/delete: authorId is a per-browser id stamped at creation, not
+      // a real credential — since this collection is publicly readable,
+      // anyone can see another entry's authorId, so this check deters
+      // accidental/casual cross-editing but isn't cryptographically secure
+      // against a determined actor (same tradeoff as posts' reactions map).
+      // "Delete" is a soft-delete (deleted: true) rather than a real
+      // document delete, matching posts (rejected posts persist forever
+      // too) and sidestepping the fact that a real `delete` request has no
+      // request.resource to check an author claim against.
+      allow read: if resource.data.get('deleted', false) != true || isAdmin();
 
       allow create: if request.resource.data.keys().hasOnly(
-                        ['name', 'photoUrl', 'text', 'createdAt']
+                        ['name', 'photoUrl', 'text', 'createdAt', 'authorId']
                       )
                       && request.resource.data.name is string
                       && request.resource.data.name.size() > 0
                       && request.resource.data.name.size() <= 60
                       && request.resource.data.text is string
                       && request.resource.data.text.size() > 0
-                      && request.resource.data.text.size() <= 600;
+                      && request.resource.data.text.size() <= 600
+                      && request.resource.data.authorId is string
+                      && request.resource.data.authorId.size() > 0
+                      && request.resource.data.authorId.size() <= 100;
 
-      allow update: if false;
+      allow update: if (isAdmin() || resource.data.get('authorId', '') == request.resource.data.authorId)
+                      && (
+                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'text', 'photoUrl'])
+                          && request.resource.data.name is string
+                          && request.resource.data.name.size() > 0
+                          && request.resource.data.name.size() <= 60
+                          && request.resource.data.text is string
+                          && request.resource.data.text.size() > 0
+                          && request.resource.data.text.size() <= 600)
+                        ||
+                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+                          && request.resource.data.deleted == true)
+                      );
+
       allow delete: if false;
     }
 
     match /photoEntries/{entryId} {
       // Photos & Personal Info board: like Kind Words, named and unmoderated.
       // Each entry needs a username plus at least one of a message, a pasted
-      // photo link, or an uploaded picture.
-      allow read: if true;
+      // photo link, or an uploaded picture. Edit/delete follow the same
+      // authorId-or-admin, soft-delete-via-update pattern as messages above.
+      allow read: if resource.data.get('deleted', false) != true || isAdmin();
 
       allow create: if request.resource.data.keys().hasOnly(
-                        ['username', 'text', 'photoLink', 'instagram', 'photoUrl', 'createdAt']
+                        ['username', 'text', 'photoLink', 'instagram', 'photoUrl', 'createdAt', 'authorId']
                       )
                       && request.resource.data.username is string
                       && request.resource.data.username.size() > 0
@@ -95,9 +122,33 @@ service cloud.firestore {
                               && request.resource.data.instagram.size() <= 40))
                       && (request.resource.data.text.size() > 0
                           || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
-                          || request.resource.data.photoUrl != null);
+                          || request.resource.data.photoUrl != null)
+                      && request.resource.data.authorId is string
+                      && request.resource.data.authorId.size() > 0
+                      && request.resource.data.authorId.size() <= 100;
 
-      allow update: if false;
+      allow update: if (isAdmin() || resource.data.get('authorId', '') == request.resource.data.authorId)
+                      && (
+                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'text', 'photoLink', 'instagram', 'photoUrl'])
+                          && request.resource.data.username is string
+                          && request.resource.data.username.size() > 0
+                          && request.resource.data.username.size() <= 60
+                          && request.resource.data.text is string
+                          && request.resource.data.text.size() <= 600
+                          && (request.resource.data.photoLink == null
+                              || (request.resource.data.photoLink is string
+                                  && request.resource.data.photoLink.size() <= 500))
+                          && (request.resource.data.instagram == null
+                              || (request.resource.data.instagram is string
+                                  && request.resource.data.instagram.size() <= 40))
+                          && (request.resource.data.text.size() > 0
+                              || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
+                              || request.resource.data.photoUrl != null))
+                        ||
+                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+                          && request.resource.data.deleted == true)
+                      );
+
       allow delete: if false;
     }
 

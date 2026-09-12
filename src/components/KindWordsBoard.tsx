@@ -4,14 +4,25 @@ import { useEffect, useState } from "react";
 import MessageCard from "./MessageCard";
 import ComposeMessageModal from "./ComposeMessageModal";
 import { KindMessage, NewMessageInput } from "@/lib/types";
-import { subscribeToMessages, createMessage } from "@/lib/messagesStore";
+import {
+  subscribeToMessages,
+  createMessage,
+  updateMessage,
+  deleteMessage,
+  getAuthorId,
+} from "@/lib/messagesStore";
+import { subscribeAdminSession } from "@/lib/adminAuth";
 
 export default function KindWordsBoard() {
   const [messages, setMessages] = useState<KindMessage[]>([]);
   const [composing, setComposing] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<KindMessage | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [myAuthorId] = useState(() => getAuthorId());
 
   useEffect(() => subscribeToMessages(setMessages), []);
+  useEffect(() => subscribeAdminSession(setIsAdmin), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -20,8 +31,33 @@ export default function KindWordsBoard() {
   }, [toast]);
 
   async function handleSubmit(input: NewMessageInput) {
-    await createMessage(input);
-    setToast("Your message is up. Thank you! 💌");
+    if (editingMessage) {
+      await updateMessage(editingMessage.id, input);
+      setToast("Message updated.");
+    } else {
+      await createMessage(input);
+      setToast("Your message is up. Thank you! 💌");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    await deleteMessage(id);
+    setToast("Message deleted.");
+  }
+
+  function openCompose() {
+    setEditingMessage(null);
+    setComposing(true);
+  }
+
+  function openEdit(message: KindMessage) {
+    setEditingMessage(message);
+    setComposing(true);
+  }
+
+  function closeCompose() {
+    setComposing(false);
+    setEditingMessage(null);
   }
 
   return (
@@ -50,14 +86,21 @@ export default function KindWordsBoard() {
         ) : (
           <div className="columns-1 sm:columns-2 gap-4">
             {messages.map((message) => (
-              <MessageCard key={message.id} message={message} />
+              <MessageCard
+                key={message.id}
+                message={message}
+                isOwner={message.authorId === myAuthorId}
+                isAdmin={isAdmin}
+                onEdit={() => openEdit(message)}
+                onDelete={() => handleDelete(message.id)}
+              />
             ))}
           </div>
         )}
       </main>
 
       <button
-        onClick={() => setComposing(true)}
+        onClick={openCompose}
         className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500 text-2xl text-white shadow-lg shadow-rose-500/30 hover:bg-rose-400 transition-colors"
         aria-label="New message"
       >
@@ -65,7 +108,11 @@ export default function KindWordsBoard() {
       </button>
 
       {composing && (
-        <ComposeMessageModal onClose={() => setComposing(false)} onSubmit={handleSubmit} />
+        <ComposeMessageModal
+          onClose={closeCompose}
+          onSubmit={handleSubmit}
+          initialValue={editingMessage ?? undefined}
+        />
       )}
     </div>
   );

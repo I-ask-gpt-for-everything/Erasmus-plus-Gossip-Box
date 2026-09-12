@@ -6,6 +6,10 @@ import { formatRelativeTime } from "@/lib/time";
 
 interface PhotoEntryCardProps {
   entry: PhotoEntry;
+  isOwner: boolean;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
 function instagramHref(handle: string): string {
@@ -13,8 +17,21 @@ function instagramHref(handle: string): string {
   return `https://instagram.com/${handle.replace(/^@/, "")}`;
 }
 
-export default function PhotoEntryCard({ entry }: PhotoEntryCardProps) {
+export default function PhotoEntryCard({
+  entry,
+  isOwner,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: PhotoEntryCardProps) {
   const initial = entry.username.trim().charAt(0).toUpperCase() || "?";
+  const canManage = isOwner || isAdmin;
+
+  function handleDelete() {
+    if (window.confirm("Delete this entry? This can't be undone.")) {
+      onDelete();
+    }
+  }
 
   return (
     <article className="break-inside-avoid mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 flex flex-col gap-3 shadow-lg shadow-black/20">
@@ -33,10 +50,28 @@ export default function PhotoEntryCard({ entry }: PhotoEntryCardProps) {
             {initial}
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">{entry.username}</p>
           <p className="text-xs text-white/40">{formatRelativeTime(entry.createdAt)}</p>
         </div>
+        {canManage && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={onEdit}
+              className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-white/80 transition-colors"
+              aria-label="Edit entry"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={handleDelete}
+              className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-red-300 transition-colors"
+              aria-label="Delete entry"
+            >
+              🗑️
+            </button>
+          </div>
+        )}
       </div>
 
       {entry.text && (

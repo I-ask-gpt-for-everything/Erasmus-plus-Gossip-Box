@@ -4,14 +4,25 @@ import { useEffect, useState } from "react";
 import PhotoEntryCard from "./PhotoEntryCard";
 import ComposePhotoEntryModal from "./ComposePhotoEntryModal";
 import { PhotoEntry, NewPhotoEntryInput } from "@/lib/types";
-import { subscribeToPhotoEntries, createPhotoEntry } from "@/lib/photosStore";
+import {
+  subscribeToPhotoEntries,
+  createPhotoEntry,
+  updatePhotoEntry,
+  deletePhotoEntry,
+  getAuthorId,
+} from "@/lib/photosStore";
+import { subscribeAdminSession } from "@/lib/adminAuth";
 
 export default function PhotosBoard() {
   const [entries, setEntries] = useState<PhotoEntry[]>([]);
   const [composing, setComposing] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<PhotoEntry | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [myAuthorId] = useState(() => getAuthorId());
 
   useEffect(() => subscribeToPhotoEntries(setEntries), []);
+  useEffect(() => subscribeAdminSession(setIsAdmin), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -20,8 +31,33 @@ export default function PhotosBoard() {
   }, [toast]);
 
   async function handleSubmit(input: NewPhotoEntryInput) {
-    await createPhotoEntry(input);
-    setToast("Posted! 📸");
+    if (editingEntry) {
+      await updatePhotoEntry(editingEntry.id, input);
+      setToast("Entry updated.");
+    } else {
+      await createPhotoEntry(input);
+      setToast("Posted! 📸");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    await deletePhotoEntry(id);
+    setToast("Entry deleted.");
+  }
+
+  function openCompose() {
+    setEditingEntry(null);
+    setComposing(true);
+  }
+
+  function openEdit(entry: PhotoEntry) {
+    setEditingEntry(entry);
+    setComposing(true);
+  }
+
+  function closeCompose() {
+    setComposing(false);
+    setEditingEntry(null);
   }
 
   return (
@@ -54,14 +90,21 @@ export default function PhotosBoard() {
         ) : (
           <div className="columns-1 sm:columns-2 gap-4">
             {entries.map((entry) => (
-              <PhotoEntryCard key={entry.id} entry={entry} />
+              <PhotoEntryCard
+                key={entry.id}
+                entry={entry}
+                isOwner={entry.authorId === myAuthorId}
+                isAdmin={isAdmin}
+                onEdit={() => openEdit(entry)}
+                onDelete={() => handleDelete(entry.id)}
+              />
             ))}
           </div>
         )}
       </main>
 
       <button
-        onClick={() => setComposing(true)}
+        onClick={openCompose}
         className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-2xl text-white shadow-lg shadow-sky-500/30 hover:bg-sky-400 transition-colors"
         aria-label="New photo entry"
       >
@@ -69,7 +112,11 @@ export default function PhotosBoard() {
       </button>
 
       {composing && (
-        <ComposePhotoEntryModal onClose={() => setComposing(false)} onSubmit={handleSubmit} />
+        <ComposePhotoEntryModal
+          onClose={closeCompose}
+          onSubmit={handleSubmit}
+          initialValue={editingEntry ?? undefined}
+        />
       )}
     </div>
   );
