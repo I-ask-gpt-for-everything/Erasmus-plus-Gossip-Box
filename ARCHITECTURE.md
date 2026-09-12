@@ -71,11 +71,15 @@ a real backend. There is no server — all validation, ID generation
 ### Firestore backend mechanics
 
 Each `firestore*Backend.ts` uses `onSnapshot` for live queries (no manual
-polling/refetching) and uploads images to Storage via `uploadString(...,
-"data_url")` before writing the Firestore document, storing the resulting
-download URL as a plain string field. `firestore.rules` is the *actual*
-enforcement boundary in this mode — the client-side checks (e.g. compose
-button `disabled` state) are UX only. See "Security model" below.
+polling/refetching). Images go to Storage before the Firestore document is
+written, with the resulting download URL stored as a plain string field —
+every such path (posts' `imageUrl`, messages'/photoEntries' `photoUrl`, on
+both create and edit) goes through the one `resolveImageUrl(dataUrl,
+pathPrefix)` helper in `src/lib/firestoreImageUpload.ts`, which decides
+between clearing, uploading a fresh `data:` pick, and passing an existing
+URL through untouched. `firestore.rules` is the *actual* enforcement
+boundary in this mode — the client-side checks (e.g. compose button
+`disabled` state) are UX only. See "Security model" below.
 
 ### Switching modes
 
@@ -280,7 +284,7 @@ runs.
 
 | Collection | Read | Create | Update | Delete |
 |---|---|---|---|---|
-| `posts/{id}` | `status == 'approved'` OR admin | validated fields; `status` must match current `moderationRequiresApproval()` | admin: `status` only (`approved`/`rejected`); anyone: `reactions` only; anyone: `comments` grows by exactly 1, new entry validated | never |
+| `posts/{id}` | `status == 'approved'` OR admin | validated fields (`text`, `imageUrl` length-checked); `status` must match current `moderationRequiresApproval()` | admin: `status` only (`approved`/`rejected`); admin: `nsfw` only; anyone: `reactions` only; anyone: `comments` grows by exactly 1, new entry validated. `imageUrl` can never change after creation | never |
 | `messages/{id}` | always (soft-deleted docs included — see below) | validated fields (`name`, `text`, `photoUrl` length-checked; `authorId` required) | anyone: content edit (`name`/`text`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
 | `photoEntries/{id}` | always (soft-deleted docs included — see below) | validated fields; needs `username` + at least one of `text`/`photoLink`/`photoUrl`; `authorId` required | anyone: content edit (`username`/`text`/`photoLink`/`instagram`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
 | `settings/moderation` | always | — | admin only | — |

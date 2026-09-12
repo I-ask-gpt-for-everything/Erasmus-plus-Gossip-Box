@@ -33,6 +33,17 @@ npx tsc --noEmit # type-check only, faster than a full build
 
 There is no test suite configured in this repo yet.
 
+## Generating ids: always `uuid()`, never `crypto.randomUUID()`
+
+Use `import { v4 as uuid } from "uuid"` for every generated id and Storage
+object name. `crypto.randomUUID()` is `undefined` outside a secure context,
+so it throws the moment the app is opened over plain `http://` — which is
+exactly how you test on a phone against the dev server
+(`http://192.168.x.x:3000`). It had crept into the Firestore backends while
+the local backends used `uuid()` throughout, which made image uploads and
+comment posting fail on precisely the connection used for device testing,
+and work everywhere else. `uuid` is already a dependency.
+
 ## Architecture: dual-backend data layer
 
 The entire app is designed to run either against Firebase or, with zero
@@ -196,8 +207,8 @@ project until redeployed. Key invariants encoded there:
   an error on one side of `||`/`&&` still denies the whole rule. This
   bites on every pre-existing `messages`/`photoEntries` document written
   before the `authorId`/`deleted` fields existed. It's why
-  `validPhotoUrl()` is called as
-  `validPhotoUrl(request.resource.data.get('photoUrl', null))` rather
+  `validMediaUrl()` is called as
+  `validMediaUrl(request.resource.data.get('photoUrl', null))` rather
   than passing `request.resource.data.photoUrl`: the content-edit branch
   is reached by any write touching only `name`/`text` too, so on a
   document that has no `photoUrl` field at all the bare access would
@@ -336,12 +347,10 @@ Two footguns in `getAuthorId()` that the guards there exist for: both
 `localStorage` accesses are wrapped in `try`/`catch` (a browser with site
 data blocked throws on the access itself, and both boards call this
 during render, so an exception takes the whole page down), and it uses
-`uuid()` rather than `crypto.randomUUID()`, which is `undefined` outside
-a secure context — i.e. when testing over plain http from a phone. It
-returns `""` on the server, which is also what a pre-`authorId` document
-backfills to, so `isOwner` comparisons must reject the empty id
-(`!!myAuthorId && entry.authorId === myAuthorId`) rather than let
-`"" === ""` grant edit rights over every legacy entry.
+`uuid()` (see below). It returns `""` on the server, which is also what a
+pre-`authorId` document backfills to, so `isOwner` comparisons must
+reject the empty id (`!!myAuthorId && entry.authorId === myAuthorId`)
+rather than let `"" === ""` grant edit rights over every legacy entry.
 
 "Delete" (`deleteMessage`/`deletePhotoEntry` in `messagesStore.ts`/
 `photosStore.ts`) is a **soft delete** — it sets `deleted: true` rather
@@ -360,13 +369,14 @@ Editing reuses the same `NewMessageInput`/`NewPhotoEntryInput` shape as
 creation: `ComposeMessageModal`/`ComposePhotoEntryModal` take an optional
 `initialValue` prop that seeds form state (including the photo preview,
 straight from the existing `photoUrl`) and swaps the header/button copy
-to "Edit…"/"Save changes". `resolvePhotoUrl(photoDataUrl, pathPrefix)` in
-`src/lib/firestorePhotoUpload.ts` turns the submitted photo field into
+to "Edit…"/"Save changes". `resolveImageUrl(imageDataUrl, pathPrefix)` in
+`src/lib/firestoreImageUpload.ts` turns the submitted image field into
 one of three outcomes — nothing (`null`, or the empty string a cleared
 field can produce) clears it, a `data:` URL means a fresh pick (upload
 it), anything else is the untouched existing `https://` URL (pass
-through, no re-upload). All four Firestore call sites go through it
-(create and update × messages and photoEntries); they used to each carry
-their own copy, so put any change to upload behaviour here rather than
-re-inlining it. Replaced or removed Storage images are never cleaned up,
-consistent with the no-Storage-cleanup note above.
+through, no re-upload). **Every** Firestore image path goes through it:
+create and update for messages and photoEntries, plus `firestoreCreatePost`'s
+`gossip-images` upload. They each used to carry their own copy, so put any
+change to upload behaviour here rather than re-inlining it. Replaced or
+removed Storage images are never cleaned up, consistent with the
+no-Storage-cleanup note above.

@@ -2,7 +2,7 @@ import { addDoc, collection, doc, onSnapshot, orderBy, query, Timestamp, updateD
 import { db } from "./firebase";
 import { PhotoEntry, NewPhotoEntryInput } from "./types";
 import { getAuthorId } from "./authorTracker";
-import { resolvePhotoUrl } from "./firestorePhotoUpload";
+import { resolveImageUrl } from "./firestoreImageUpload";
 
 const PHOTO_PATH_PREFIX = "photo-entries";
 
@@ -51,7 +51,7 @@ export function firestoreSubscribeToPhotoEntries(
 }
 
 export async function firestoreCreatePhotoEntry(input: NewPhotoEntryInput): Promise<void> {
-  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
+  const photoUrl = await resolveImageUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await addDoc(collection(db!, "photoEntries"), {
     username: input.username,
@@ -68,7 +68,7 @@ export async function firestoreUpdatePhotoEntry(
   id: string,
   input: NewPhotoEntryInput
 ): Promise<void> {
-  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
+  const photoUrl = await resolveImageUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await updateDoc(doc(db!, "photoEntries", id), {
     username: input.username,

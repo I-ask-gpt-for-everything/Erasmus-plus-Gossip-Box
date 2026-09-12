@@ -16,10 +16,16 @@ service cloud.firestore {
 
     // Uploaded pictures are stored as Storage download URLs (~200 chars); the
     // cap stops a client parking a ~1MB data: URL in the document itself and
-    // bloating every visitor's listen. Callers pass .get(key, null) so that an
+    // bloating every visitor's listen. Note this bounds the field's size, not
+    // its origin — a client can still point it at an arbitrary third-party
+    // https URL, which the cards render through next/image with `unoptimized`.
+    // Constraining it to the project's own Storage bucket would mean pinning
+    // the bucket hostname in here; not done, in the same spirit as the rest of
+    // this app's client-trust posture. Used for posts' `imageUrl` and for
+    // messages'/photoEntries' `photoUrl`. Callers pass .get(key, null) so an
     // absent key reads as null instead of raising an evaluation error.
-    function validPhotoUrl(photoUrl) {
-      return photoUrl == null || (photoUrl is string && photoUrl.size() <= 500);
+    function validMediaUrl(url) {
+      return url == null || (url is string && url.size() <= 500);
     }
 
     match /posts/{postId} {
@@ -34,6 +40,7 @@ service cloud.firestore {
                       && request.resource.data.text.size() > 0
                       && request.resource.data.text.size() <= 280
                       && request.resource.data.nsfw is bool
+                      && validMediaUrl(request.resource.data.get('imageUrl', null))
                       && request.resource.data.reactions == {}
                       && request.resource.data.comments == []
                       && request.resource.data.status ==
@@ -92,7 +99,7 @@ service cloud.firestore {
                       && request.resource.data.text is string
                       && request.resource.data.text.size() > 0
                       && request.resource.data.text.size() <= 600
-                      && validPhotoUrl(request.resource.data.get('photoUrl', null))
+                      && validMediaUrl(request.resource.data.get('photoUrl', null))
                       && request.resource.data.authorId is string
                       && request.resource.data.authorId.size() > 0
                       && request.resource.data.authorId.size() <= 100;
@@ -124,7 +131,7 @@ service cloud.firestore {
                           && request.resource.data.text is string
                           && request.resource.data.text.size() > 0
                           && request.resource.data.text.size() <= 600
-                          && validPhotoUrl(request.resource.data.get('photoUrl', null)))
+                          && validMediaUrl(request.resource.data.get('photoUrl', null)))
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
                           && request.resource.data.deleted == true);
 
@@ -153,7 +160,7 @@ service cloud.firestore {
                       && (request.resource.data.instagram == null
                           || (request.resource.data.instagram is string
                               && request.resource.data.instagram.size() <= 40))
-                      && validPhotoUrl(request.resource.data.get('photoUrl', null))
+                      && validMediaUrl(request.resource.data.get('photoUrl', null))
                       && (request.resource.data.text.size() > 0
                           || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
                           || request.resource.data.photoUrl != null)
@@ -173,7 +180,7 @@ service cloud.firestore {
                           && (request.resource.data.instagram == null
                               || (request.resource.data.instagram is string
                                   && request.resource.data.instagram.size() <= 40))
-                          && validPhotoUrl(request.resource.data.get('photoUrl', null))
+                          && validMediaUrl(request.resource.data.get('photoUrl', null))
                           && (request.resource.data.text.size() > 0
                               || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
                               || request.resource.data.photoUrl != null))

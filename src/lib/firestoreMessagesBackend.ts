@@ -2,7 +2,7 @@ import { addDoc, collection, doc, onSnapshot, orderBy, query, Timestamp, updateD
 import { db } from "./firebase";
 import { KindMessage, NewMessageInput } from "./types";
 import { getAuthorId } from "./authorTracker";
-import { resolvePhotoUrl } from "./firestorePhotoUpload";
+import { resolveImageUrl } from "./firestoreImageUpload";
 
 const PHOTO_PATH_PREFIX = "message-photos";
 
@@ -47,7 +47,7 @@ export function firestoreSubscribeToMessages(
 }
 
 export async function firestoreCreateMessage(input: NewMessageInput): Promise<void> {
-  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
+  const photoUrl = await resolveImageUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await addDoc(collection(db!, "messages"), {
     name: input.name,
@@ -59,7 +59,7 @@ export async function firestoreCreateMessage(input: NewMessageInput): Promise<vo
 }
 
 export async function firestoreUpdateMessage(id: string, input: NewMessageInput): Promise<void> {
-  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
+  const photoUrl = await resolveImageUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await updateDoc(doc(db!, "messages", id), {
     name: input.name,

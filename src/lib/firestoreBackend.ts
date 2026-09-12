@@ -12,13 +12,13 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { auth, db, storage } from "./firebase";
+import { v4 as uuid } from "uuid";
+import { auth, db } from "./firebase";
 import {
   DEFAULT_MODERATION_SETTINGS,
   GossipComment,
@@ -29,6 +29,9 @@ import {
   VisibilitySettings,
 } from "./types";
 import { toggleMyReaction } from "./reactionTracker";
+import { resolveImageUrl } from "./firestoreImageUpload";
+
+const IMAGE_PATH_PREFIX = "gossip-images";
 
 interface PostDoc {
   text: string;
@@ -126,13 +129,7 @@ export async function firestoreSetVisibilityWindow(
 }
 
 export async function firestoreCreatePost(input: NewPostInput): Promise<void> {
-  let imageUrl: string | null = null;
-
-  if (input.imageDataUrl) {
-    const imageRef = ref(storage!, `gossip-images/${crypto.randomUUID()}`);
-    await uploadString(imageRef, input.imageDataUrl, "data_url");
-    imageUrl = await getDownloadURL(imageRef);
-  }
+  const imageUrl = await resolveImageUrl(input.imageDataUrl, IMAGE_PATH_PREFIX);
 
   const now = Date.now();
   const { requireApproval } = await readModerationSettings();
@@ -152,7 +149,10 @@ export async function firestoreCreatePost(input: NewPostInput): Promise<void> {
 // can't race and clobber each other's entry the way the reactions
 // read-modify-write above can — no transaction needed.
 export async function firestoreAddComment(postId: string, text: string): Promise<void> {
-  const comment: GossipComment = { id: crypto.randomUUID(), text, createdAt: Date.now() };
+  // uuid() not crypto.randomUUID(), which is undefined over plain http and so
+  // threw on every comment posted from a phone on the LAN. Matches
+  // localBackend's id generation.
+  const comment: GossipComment = { id: uuid(), text, createdAt: Date.now() };
   await updateDoc(doc(db!, "posts", postId), {
     comments: arrayUnion(comment),
   });
