@@ -20,7 +20,7 @@ export default function GossipFeed() {
   const [showNsfw, setShowNsfw] = useState(false);
   const [composing, setComposing] = useState(false);
   const [moderation, setModeration] = useState(DEFAULT_MODERATION_SETTINGS);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [printMode, setPrintMode] = useState(false);
   const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
@@ -48,13 +48,47 @@ export default function GossipFeed() {
     return () => clearInterval(interval);
   }, []);
 
-  async function handleSubmit(input: NewPostInput) {
-    await createPost(input);
-    setToast(
-      moderation.requireApproval
-        ? "Submitted — awaiting admin approval."
-        : "Your gossip is live!"
-    );
+  // Reports success rather than rethrowing: the modal awaits this from an
+  // onClick handler, so a thrown error would escape as an unhandled rejection
+  // instead of just leaving the modal open with the draft intact. Mirrors
+  // KindWordsBoard/PhotosBoard, which already report failures this way.
+  async function handleSubmit(input: NewPostInput): Promise<boolean> {
+    try {
+      await createPost(input);
+      setToast({
+        text: moderation.requireApproval
+          ? "Submitted — awaiting admin approval."
+          : "Your gossip is live!",
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to post gossip:", error);
+      setToast({ text: "Couldn't post — please try again.", error: true });
+      return false;
+    }
+  }
+
+  // Same contract for comments, so CommentSection only clears the draft it
+  // holds once the write has actually landed.
+  async function handleAddComment(postId: string, text: string): Promise<boolean> {
+    try {
+      await addComment(postId, text);
+      return true;
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      setToast({ text: "Couldn't add comment — please try again.", error: true });
+      return false;
+    }
+  }
+
+  // ReactionBar fires and forgets, so this swallows rather than rejecting.
+  async function handleReact(postId: string, emoji: string) {
+    try {
+      await toggleReaction(postId, emoji);
+    } catch (error) {
+      console.error("Failed to toggle reaction:", error);
+      setToast({ text: "Couldn't save your reaction — please try again.", error: true });
+    }
   }
 
   const windowOpen = isWithinVisibilityWindow(moderation.visibilityWindow, now);
@@ -92,9 +126,17 @@ export default function GossipFeed() {
           onTogglePrint={togglePrintMode}
         />
 
+        {/* Above the compose modal's z-50: a failed save leaves the modal open,
+            and the toast explaining why has to be readable over it. */}
         {toast && (
-          <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-neutral-800 border border-white/10 px-4 py-2 text-sm text-white shadow-lg">
-            {toast}
+          <div
+            className={`fixed top-20 left-1/2 z-[60] -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
+              toast.error
+                ? "bg-red-950 border-red-500/40 text-red-200"
+                : "bg-neutral-800 border-white/10 text-white"
+            }`}
+          >
+            {toast.text}
           </div>
         )}
 
@@ -148,8 +190,8 @@ export default function GossipFeed() {
                 <PostCard
                   key={post.id}
                   post={post}
-                  onReact={toggleReaction}
-                  onAddComment={addComment}
+                  onReact={handleReact}
+                  onAddComment={handleAddComment}
                   selectable={printMode}
                   selected={selectedForPrint.has(post.id)}
                   onToggleSelect={toggleSelectForPrint}

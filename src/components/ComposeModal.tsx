@@ -9,7 +9,7 @@ const MAX_LENGTH = 280;
 
 interface ComposeModalProps {
   onClose: () => void;
-  onSubmit: (input: NewPostInput) => Promise<void>;
+  onSubmit: (input: NewPostInput) => Promise<boolean>;
   requireApproval: boolean;
 }
 
@@ -53,8 +53,8 @@ export default function ComposeModal({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onSubmit({ text: text.trim(), imageDataUrl, nsfw });
-      onClose();
+      const saved = await onSubmit({ text: text.trim(), imageDataUrl, nsfw });
+      if (saved) onClose();
     } finally {
       setSubmitting(false);
     }

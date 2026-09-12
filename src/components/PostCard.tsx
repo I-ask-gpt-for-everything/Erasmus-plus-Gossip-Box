@@ -10,7 +10,7 @@ import CommentSection from "./CommentSection";
 interface PostCardProps {
   post: GossipPost;
   onReact: (id: string, emoji: string) => void;
-  onAddComment: (id: string, text: string) => Promise<void>;
+  onAddComment: (id: string, text: string) => Promise<boolean>;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;

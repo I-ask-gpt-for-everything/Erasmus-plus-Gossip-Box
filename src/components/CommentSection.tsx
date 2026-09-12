@@ -7,7 +7,7 @@ import { formatRelativeTime } from "@/lib/time";
 interface CommentSectionProps {
   postId: string;
   comments: GossipComment[];
-  onAddComment: (postId: string, text: string) => Promise<void>;
+  onAddComment: (postId: string, text: string) => Promise<boolean>;
 }
 
 export default function CommentSection({
@@ -24,8 +24,8 @@ export default function CommentSection({
     if (!text || submitting) return;
     setSubmitting(true);
     try {
-      await onAddComment(postId, text);
-      setDraft("");
+      const added = await onAddComment(postId, text);
+      if (added) setDraft("");
     } finally {
       setSubmitting(false);
     }
