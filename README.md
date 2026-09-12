@@ -26,7 +26,8 @@ plus `/admin`.
 
 ## Stack
 
-- **Next.js (App Router) + TypeScript + Tailwind** — deploys straight to Vercel.
+- **Next.js (App Router) + TypeScript + Tailwind** — deployed on Firebase App
+  Hosting (see "Deploying" below).
 - **Firebase** — Firestore for posts, Storage for images.
 - **Local demo mode** — if no Firebase config is present, the app
   transparently falls back to `localStorage` so you can run and demo it
@@ -144,15 +145,34 @@ flag, no expiry. Stored in its own `photoEntries` Firestore collection /
 `photo-entries/` Storage path, and also isn't part of the admin
 dashboard.
 
-## Deploying to Vercel
+## Deploying
+
+The app runs on **Firebase App Hosting** (backend `blackp`, region
+`europe-west4`), not Vercel:
+
+<https://blackp--erasmus-plus-gossip-box.europe-west4.hosted.app>
+
+App Hosting builds from the GitHub repo with rollout-on-update enabled, so
+**pushing to `main` is the deploy** — there's no deploy command to run:
 
 ```bash
-vercel
+git push origin main    # triggers a build + rollout, takes a few minutes
 ```
 
-Add the same `NEXT_PUBLIC_FIREBASE_*` variables in the Vercel project's
-Environment Variables settings so production talks to your real Firebase
-project instead of running in local demo mode.
+Production environment variables are **not** set in a dashboard: they live in
+`apphosting.yaml`, committed to the repo. Next.js inlines `NEXT_PUBLIC_*` at
+build time, and the remote build never sees the git-ignored `.env.local`, so a
+variable missing from `apphosting.yaml` makes production silently fall back to
+localStorage-only mode. These are Firebase's public web-config values, not
+secrets.
+
+Security rules are the exception — they are **not** part of the App Hosting
+rollout and must be pushed separately, or the live project keeps enforcing the
+old ones:
+
+```bash
+firebase deploy --only firestore:rules,storage
+```
 
 ## Prototype notes / not-yet-hardened
 

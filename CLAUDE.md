@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 GossipBox — an anonymous gossip board (Next.js App Router + TypeScript +
-Tailwind, deployed to Vercel, backed by Firebase). Anyone can post a short
+Tailwind, deployed on Firebase App Hosting, backed by Firebase). Anyone can post a short
 text gossip with optional image and emoji, and mark it NSFW. Posts stay
 visible forever and the feed is sorted newest-first by `createdAt`. New
 posts can require admin approval before they go public. Two more,

@@ -8,9 +8,12 @@ way" reference the other two intentionally don't try to be.
 
 ## Stack
 
-- **Next.js 16 (App Router) + TypeScript + Tailwind v4**, deployed to
-  Vercel. `npm run dev` runs Turbopack by default (see `AGENTS.md` for the
-  reminder that this Next.js version may differ from training data).
+- **Next.js 16 (App Router) + TypeScript + Tailwind v4**, deployed on
+  Firebase App Hosting — a push to `main` is the deploy, and production env
+  vars come from the committed `apphosting.yaml`, not a dashboard (see
+  README "Deploying"). `npm run dev` runs Turbopack by default (see
+  `AGENTS.md` for the reminder that this Next.js version may differ from
+  training data).
 - **Firebase** — Firestore (documents), Storage (images), Authentication
   (admin accounts) — used only when configured.
 - **No backend of its own.** There is no API route layer; every page is a
