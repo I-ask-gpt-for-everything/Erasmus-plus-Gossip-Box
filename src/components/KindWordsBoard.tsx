@@ -19,6 +19,10 @@ export default function KindWordsBoard() {
   const [editingMessage, setEditingMessage] = useState<KindMessage | null>(null);
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // "" during the server render, where there's no localStorage to read — which
+  // is also what a pre-authorId message backfills its own authorId to, so
+  // isOwner below has to reject the empty id rather than let "" === "" hand
+  // every visitor edit rights over every legacy entry.
   const [myAuthorId] = useState(() => getAuthorId());
 
   useEffect(() => subscribeToMessages(setMessages), []);
@@ -30,7 +34,10 @@ export default function KindWordsBoard() {
     return () => clearTimeout(timeout);
   }, [toast]);
 
-  async function handleSubmit(input: NewMessageInput) {
+  // Reports success rather than rethrowing: the modal awaits this from an
+  // onClick handler, so a thrown error would escape as an unhandled rejection
+  // (and Next's dev overlay) instead of just keeping the modal open.
+  async function handleSubmit(input: NewMessageInput): Promise<boolean> {
     try {
       if (editingMessage) {
         await updateMessage(editingMessage.id, input);
@@ -39,10 +46,11 @@ export default function KindWordsBoard() {
         await createMessage(input);
         setToast({ text: "Your message is up. Thank you! 💌" });
       }
+      return true;
     } catch (error) {
       console.error("Failed to save message:", error);
       setToast({ text: "Couldn't save — please try again.", error: true });
-      throw error;
+      return false;
     }
   }
 
@@ -82,9 +90,11 @@ export default function KindWordsBoard() {
         </div>
       </header>
 
+      {/* Above the compose modal's z-50: a failed save leaves the modal open,
+          and the toast explaining why has to be readable over it. */}
       {toast && (
         <div
-          className={`fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
+          className={`fixed top-20 left-1/2 z-[60] -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
             toast.error
               ? "bg-red-950 border-red-500/40 text-red-200"
               : "bg-neutral-800 border-white/10 text-white"
@@ -106,7 +116,7 @@ export default function KindWordsBoard() {
               <MessageCard
                 key={message.id}
                 message={message}
-                isOwner={message.authorId === myAuthorId}
+                isOwner={!!myAuthorId && message.authorId === myAuthorId}
                 isAdmin={isAdmin}
                 onEdit={() => openEdit(message)}
                 onDelete={() => handleDelete(message.id)}

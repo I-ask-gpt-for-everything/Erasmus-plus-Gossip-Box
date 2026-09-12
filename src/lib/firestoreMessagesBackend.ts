@@ -1,8 +1,10 @@
 import { addDoc, collection, doc, onSnapshot, orderBy, query, Timestamp, updateDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { db } from "./firebase";
 import { KindMessage, NewMessageInput } from "./types";
 import { getAuthorId } from "./authorTracker";
+import { resolvePhotoUrl } from "./firestorePhotoUpload";
+
+const PHOTO_PATH_PREFIX = "message-photos";
 
 interface MessageDoc {
   name: string;
@@ -45,13 +47,7 @@ export function firestoreSubscribeToMessages(
 }
 
 export async function firestoreCreateMessage(input: NewMessageInput): Promise<void> {
-  let photoUrl: string | null = null;
-
-  if (input.photoDataUrl) {
-    const photoRef = ref(storage!, `message-photos/${crypto.randomUUID()}`);
-    await uploadString(photoRef, input.photoDataUrl, "data_url");
-    photoUrl = await getDownloadURL(photoRef);
-  }
+  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await addDoc(collection(db!, "messages"), {
     name: input.name,
@@ -63,17 +59,7 @@ export async function firestoreCreateMessage(input: NewMessageInput): Promise<vo
 }
 
 export async function firestoreUpdateMessage(id: string, input: NewMessageInput): Promise<void> {
-  let photoUrl: string | null;
-
-  if (input.photoDataUrl === null) {
-    photoUrl = null;
-  } else if (input.photoDataUrl.startsWith("data:")) {
-    const photoRef = ref(storage!, `message-photos/${crypto.randomUUID()}`);
-    await uploadString(photoRef, input.photoDataUrl, "data_url");
-    photoUrl = await getDownloadURL(photoRef);
-  } else {
-    photoUrl = input.photoDataUrl;
-  }
+  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await updateDoc(doc(db!, "messages", id), {
     name: input.name,

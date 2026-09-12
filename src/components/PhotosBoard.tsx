@@ -19,6 +19,10 @@ export default function PhotosBoard() {
   const [editingEntry, setEditingEntry] = useState<PhotoEntry | null>(null);
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // "" during the server render, where there's no localStorage to read — which
+  // is also what a pre-authorId entry backfills its own authorId to, so
+  // isOwner below has to reject the empty id rather than let "" === "" hand
+  // every visitor edit rights over every legacy entry.
   const [myAuthorId] = useState(() => getAuthorId());
 
   useEffect(() => subscribeToPhotoEntries(setEntries), []);
@@ -30,7 +34,10 @@ export default function PhotosBoard() {
     return () => clearTimeout(timeout);
   }, [toast]);
 
-  async function handleSubmit(input: NewPhotoEntryInput) {
+  // Reports success rather than rethrowing: the modal awaits this from an
+  // onClick handler, so a thrown error would escape as an unhandled rejection
+  // (and Next's dev overlay) instead of just keeping the modal open.
+  async function handleSubmit(input: NewPhotoEntryInput): Promise<boolean> {
     try {
       if (editingEntry) {
         await updatePhotoEntry(editingEntry.id, input);
@@ -39,10 +46,11 @@ export default function PhotosBoard() {
         await createPhotoEntry(input);
         setToast({ text: "Posted! 📸" });
       }
+      return true;
     } catch (error) {
       console.error("Failed to save photo entry:", error);
       setToast({ text: "Couldn't save — please try again.", error: true });
-      throw error;
+      return false;
     }
   }
 
@@ -86,9 +94,11 @@ export default function PhotosBoard() {
         </div>
       </header>
 
+      {/* Above the compose modal's z-50: a failed save leaves the modal open,
+          and the toast explaining why has to be readable over it. */}
       {toast && (
         <div
-          className={`fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
+          className={`fixed top-20 left-1/2 z-[60] -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
             toast.error
               ? "bg-red-950 border-red-500/40 text-red-200"
               : "bg-neutral-800 border-white/10 text-white"
@@ -110,7 +120,7 @@ export default function PhotosBoard() {
               <PhotoEntryCard
                 key={entry.id}
                 entry={entry}
-                isOwner={entry.authorId === myAuthorId}
+                isOwner={!!myAuthorId && entry.authorId === myAuthorId}
                 isAdmin={isAdmin}
                 onEdit={() => openEdit(entry)}
                 onDelete={() => handleDelete(entry.id)}

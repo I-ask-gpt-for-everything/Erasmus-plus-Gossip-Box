@@ -14,6 +14,14 @@ service cloud.firestore {
         get(/databases/$(database)/documents/settings/moderation).data.requireApproval != false;
     }
 
+    // Uploaded pictures are stored as Storage download URLs (~200 chars); the
+    // cap stops a client parking a ~1MB data: URL in the document itself and
+    // bloating every visitor's listen. Callers pass .get(key, null) so that an
+    // absent key reads as null instead of raising an evaluation error.
+    function validPhotoUrl(photoUrl) {
+      return photoUrl == null || (photoUrl is string && photoUrl.size() <= 500);
+    }
+
     match /posts/{postId} {
       // A post is publicly visible only once approved; admins can also read
       // pending/rejected posts for the moderation queue.
@@ -58,16 +66,22 @@ service cloud.firestore {
       // unlike posts, these carry the author's own name, so there's no
       // anonymity to protect and no approval workflow attached.
       //
-      // Edit/delete: authorId is a per-browser id stamped at creation, not
-      // a real credential — since this collection is publicly readable,
-      // anyone can see another entry's authorId, so this check deters
-      // accidental/casual cross-editing but isn't cryptographically secure
-      // against a determined actor (same tradeoff as posts' reactions map).
-      // "Delete" is a soft-delete (deleted: true) rather than a real
-      // document delete, matching posts (rejected posts persist forever
-      // too) and sidestepping the fact that a real `delete` request has no
-      // request.resource to check an author claim against.
-      allow read: if resource.data.get('deleted', false) != true || isAdmin();
+      // Read is unconditional on purpose, soft-deleted entries included. A
+      // per-document gate such as `resource.data.get('deleted', false) != true`
+      // cannot be satisfied by this board's listen: Firestore evaluates list
+      // rules against a query's *potential* result set, so an unconstrained
+      // orderBy('createdAt') query whose rule depends on a per-document field
+      // is rejected outright for any reader who doesn't short-circuit the rule
+      // (the same mechanic spelled out above firestoreSubscribeToAllPosts).
+      // Constraining the query with where('deleted', '==', false) instead
+      // would hide every document written before that field existed, since an
+      // equality filter skips documents missing the field entirely — and the
+      // update rule below only ever allows deleted -> true, so those documents
+      // cannot be backfilled from a client. Both backends filter `deleted` out
+      // of the subscription callback instead: a soft-deleted entry vanishes
+      // from the board while its document stays readable, consistent with this
+      // app's nothing-is-ever-really-deleted posture elsewhere.
+      allow read: if true;
 
       allow create: if request.resource.data.keys().hasOnly(
                         ['name', 'photoUrl', 'text', 'createdAt', 'authorId']
@@ -78,23 +92,41 @@ service cloud.firestore {
                       && request.resource.data.text is string
                       && request.resource.data.text.size() > 0
                       && request.resource.data.text.size() <= 600
+                      && validPhotoUrl(request.resource.data.get('photoUrl', null))
                       && request.resource.data.authorId is string
                       && request.resource.data.authorId.size() > 0
                       && request.resource.data.authorId.size() <= 100;
 
-      allow update: if (isAdmin() || resource.data.get('authorId', '') == request.resource.data.authorId)
-                      && (
-                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'text', 'photoUrl'])
+      // Edit and soft-delete deliberately carry no server-side author check.
+      // `authorId` is a per-browser id stamped at creation, and because this
+      // collection is publicly readable anyone can read another entry's id and
+      // replay it — so comparing it against a client-supplied value enforces
+      // nothing. (An earlier revision compared resource.data.authorId against
+      // request.resource.data.authorId, which is vacuous besides: the
+      // affectedKeys().hasOnly() clauses below already forbid touching
+      // authorId, so the two sides could never differ.) Ownership is a UI
+      // affordance only — MessageCard shows edit/delete when
+      // `message.authorId === getAuthorId()` — the same tradeoff already
+      // accepted for the reactions map, which anyone can likewise rewrite.
+      // Real per-author enforcement would need Firebase Anonymous Auth,
+      // deliberately out of scope here.
+      //
+      // What this rule does still enforce is the shape of the write: a content
+      // edit may touch only name/text/photoUrl and must stay length-valid, and
+      // a delete may only ever set `deleted` to true — never back to false,
+      // and never bundled with other fields. Soft-deleting rather than really
+      // deleting also sidesteps the fact that a real `delete` request carries
+      // no request.resource to validate at all.
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'text', 'photoUrl'])
                           && request.resource.data.name is string
                           && request.resource.data.name.size() > 0
                           && request.resource.data.name.size() <= 60
                           && request.resource.data.text is string
                           && request.resource.data.text.size() > 0
-                          && request.resource.data.text.size() <= 600)
-                        ||
-                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
-                          && request.resource.data.deleted == true)
-                      );
+                          && request.resource.data.text.size() <= 600
+                          && validPhotoUrl(request.resource.data.get('photoUrl', null)))
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+                          && request.resource.data.deleted == true);
 
       allow delete: if false;
     }
@@ -102,9 +134,10 @@ service cloud.firestore {
     match /photoEntries/{entryId} {
       // Photos & Personal Info board: like Kind Words, named and unmoderated.
       // Each entry needs a username plus at least one of a message, a pasted
-      // photo link, or an uploaded picture. Edit/delete follow the same
-      // authorId-or-admin, soft-delete-via-update pattern as messages above.
-      allow read: if resource.data.get('deleted', false) != true || isAdmin();
+      // photo link, or an uploaded picture. Read visibility and the absence of
+      // a server-side author check follow the same reasoning as messages
+      // above — see the two comments there.
+      allow read: if true;
 
       allow create: if request.resource.data.keys().hasOnly(
                         ['username', 'text', 'photoLink', 'instagram', 'photoUrl', 'createdAt', 'authorId']
@@ -120,6 +153,7 @@ service cloud.firestore {
                       && (request.resource.data.instagram == null
                           || (request.resource.data.instagram is string
                               && request.resource.data.instagram.size() <= 40))
+                      && validPhotoUrl(request.resource.data.get('photoUrl', null))
                       && (request.resource.data.text.size() > 0
                           || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
                           || request.resource.data.photoUrl != null)
@@ -127,9 +161,7 @@ service cloud.firestore {
                       && request.resource.data.authorId.size() > 0
                       && request.resource.data.authorId.size() <= 100;
 
-      allow update: if (isAdmin() || resource.data.get('authorId', '') == request.resource.data.authorId)
-                      && (
-                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'text', 'photoLink', 'instagram', 'photoUrl'])
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'text', 'photoLink', 'instagram', 'photoUrl'])
                           && request.resource.data.username is string
                           && request.resource.data.username.size() > 0
                           && request.resource.data.username.size() <= 60
@@ -141,13 +173,12 @@ service cloud.firestore {
                           && (request.resource.data.instagram == null
                               || (request.resource.data.instagram is string
                                   && request.resource.data.instagram.size() <= 40))
+                          && validPhotoUrl(request.resource.data.get('photoUrl', null))
                           && (request.resource.data.text.size() > 0
                               || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
                               || request.resource.data.photoUrl != null))
-                        ||
-                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
-                          && request.resource.data.deleted == true)
-                      );
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+                          && request.resource.data.deleted == true);
 
       allow delete: if false;
     }

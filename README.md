@@ -53,7 +53,7 @@ prototype, it just won't sync between devices/browsers.
    npm install -g firebase-tools
    firebase login
    firebase init firestore storage   # point at this repo's firestore.rules / storage.rules
-   firebase deploy --only firestore:rules,storage:rules
+   firebase deploy --only firestore:rules,storage
    ```
 4. In Project settings → General → Your apps, create a Web app and copy the
    config values into a `.env.local` (see `.env.local.example`):

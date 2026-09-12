@@ -105,8 +105,8 @@ All types live in `src/lib/types.ts`.
 |---|---|---|
 | `GossipPost` | `id, text, imageUrl, nsfw, createdAt, status, reactions, comments` | `status: "pending" \| "approved" \| "rejected"`. `reactions: Record<emoji, count>`. `comments: GossipComment[]` embedded array. |
 | `GossipComment` | `id, text, createdAt` | Anonymous (no author field), embedded on the post, not a subcollection. |
-| `KindMessage` | `id, name, photoUrl, text, createdAt` | Named, no status, no reactions. |
-| `PhotoEntry` | `id, username, text, photoLink, instagram, photoUrl, createdAt` | Named; needs `username` plus at least one of `text` / `photoLink` / an uploaded `photoUrl`. |
+| `KindMessage` | `id, name, photoUrl, text, createdAt, authorId, deleted?` | Named, no status, no reactions. |
+| `PhotoEntry` | `id, username, text, photoLink, instagram, photoUrl, createdAt, authorId, deleted?` | Named; needs `username` plus at least one of `text` / `photoLink` / an uploaded `photoUrl`. |
 | `ModerationSettings` | `requireApproval` | Single doc/localStorage key, defaults to `{ requireApproval: true }`. |
 
 `REACTION_EMOJIS` (`❤️😂😮😢🔥👍`) is the fixed reaction palette — not
@@ -156,8 +156,8 @@ Gossip," it's the Sidebar, not `Header.tsx`.)
 
 ```
 GossipFeed (Header, PostCard[] → ReactionBar + CommentSection, ComposeModal → EmojiPicker)
-KindWordsBoard (MessageCard[], ComposeMessageModal)
-PhotosBoard (PhotoEntryCard[], ComposePhotoEntryModal)
+KindWordsBoard (MessageCard[] → EntryActions, ComposeMessageModal)
+PhotosBoard (PhotoEntryCard[] → EntryActions, ComposePhotoEntryModal)
 AdminDashboard (tab bar: Overview | Pending | All gossips | Settings; print view)
 AdminLogin
 Sidebar (layout-level, all routes)
@@ -176,6 +176,20 @@ Sidebar (layout-level, all routes)
   anything itself — it's purely presentational over the `comments` array
   and an `onAddComment(postId, text)` callback threaded down from
   `GossipFeed` the same way `onReact` is.
+- **`KindWordsBoard` / `PhotosBoard`** each subscribe to their own store plus
+  `subscribeAdminSession`, and pass `isOwner` (`!!myAuthorId && entry.authorId
+  === myAuthorId` — the empty-id guard matters, since a pre-`authorId` document
+  backfills to `""` and so does `getAuthorId()` on the server) and `isAdmin`
+  down to the card. Their `handleSubmit` resolves `true`/`false` rather than
+  rethrowing, because the modal awaits it from an `onClick`: a rejection there
+  escapes as an unhandled rejection instead of just keeping the modal open. The
+  error toast sits at `z-[60]`, above the modal's `z-50`, so a failed save is
+  readable over the still-open form.
+- **`EntryActions`** is the edit/delete control pair shared by `MessageCard`
+  and `PhotoEntryCard` (renders nothing unless `isOwner || isAdmin`, and owns
+  the `confirm()`). The two boards keep their *data* modules separate on
+  purpose, but this is presentation — one copy keeps the wording and the
+  owner-or-admin condition from drifting.
 - **`AdminDashboard`** drives everything off one `subscribeToAllPosts`
   subscription; `pending`/`stats`/`filteredAll`/`printCandidates`/
   `printPosts` are all `useMemo` derivations of that single list plus
@@ -260,17 +274,43 @@ of raw stored posts needs the same fallback.
 `firestore.rules` / `storage.rules` are the real enforcement boundary
 once Firebase is configured; everything in the React components is UX
 only. **They must be deployed manually**
-(`firebase deploy --only firestore:rules,storage:rules`) — editing the
+(`firebase deploy --only firestore:rules,storage`) — editing the
 `.rules` files in this repo has no effect on a live project until that
 runs.
 
 | Collection | Read | Create | Update | Delete |
 |---|---|---|---|---|
 | `posts/{id}` | `status == 'approved'` OR admin | validated fields; `status` must match current `moderationRequiresApproval()` | admin: `status` only (`approved`/`rejected`); anyone: `reactions` only; anyone: `comments` grows by exactly 1, new entry validated | never |
-| `messages/{id}` | always | validated fields (`name`, `text` length-checked) | never | never |
-| `photoEntries/{id}` | always | validated fields; needs `username` + at least one of `text`/`photoLink`/`photoUrl` | never | never |
+| `messages/{id}` | always (soft-deleted docs included — see below) | validated fields (`name`, `text`, `photoUrl` length-checked; `authorId` required) | anyone: content edit (`name`/`text`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
+| `photoEntries/{id}` | always (soft-deleted docs included — see below) | validated fields; needs `username` + at least one of `text`/`photoLink`/`photoUrl`; `authorId` required | anyone: content edit (`username`/`text`/`photoLink`/`instagram`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
 | `settings/moderation` | always | — | admin only | — |
 | `admins/{uid}` | only that uid, if signed in | never (client) | never | never |
+
+Two things about `messages`/`photoEntries` in that table are deliberate and
+easy to misread as oversights:
+
+- **Read is unconditional, soft-deleted documents included.** Gating reads on
+  `resource.data.get('deleted', false) != true` looks right but breaks both
+  boards: Firestore evaluates list rules against a query's *potential* result
+  set, so the unconstrained `orderBy('createdAt')` listen both boards use is
+  rejected outright when the rule depends on a per-document field (the same
+  mechanic that forces `subscribeToPosts` to carry `where('status','==','approved')`).
+  Adding `where('deleted','==',false)` instead would hide every document
+  written before that field existed, since an equality filter skips documents
+  missing the field — and `update` only ever allows `deleted → true`, so those
+  documents can't be backfilled from a client. Both backends filter `deleted`
+  out of the subscription callback instead: a soft-deleted entry disappears
+  from the board, but its document stays readable to anyone querying directly.
+- **There is no server-side author check on `update`.** `authorId` is a
+  per-browser id (`src/lib/authorTracker.ts`), and because these collections
+  are publicly readable anyone can read another entry's id and replay it — a
+  rule comparing it against a client-supplied value enforces nothing. Ownership
+  is a UI affordance (`MessageCard`/`PhotoEntryCard` show edit/delete when
+  `entry.authorId === getAuthorId()`), the same tradeoff already accepted for
+  the reactions map. What the rule still enforces is the *shape* of the write:
+  which keys may change, that content stays length-valid, and that `deleted`
+  can only ever go to `true`. Real per-author enforcement would need Firebase
+  Anonymous Auth, deliberately out of scope.
 
 `isAdmin()` = `request.auth != null && exists(admins/{request.auth.uid})`.
 The `admins` collection can't be written by any client — the first admin

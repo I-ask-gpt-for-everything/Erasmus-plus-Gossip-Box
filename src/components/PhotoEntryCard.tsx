@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { PhotoEntry } from "@/lib/types";
 import { formatRelativeTime } from "@/lib/time";
+import EntryActions from "./EntryActions";
 
 interface PhotoEntryCardProps {
   entry: PhotoEntry;
@@ -25,13 +26,6 @@ export default function PhotoEntryCard({
   onDelete,
 }: PhotoEntryCardProps) {
   const initial = entry.username.trim().charAt(0).toUpperCase() || "?";
-  const canManage = isOwner || isAdmin;
-
-  function handleDelete() {
-    if (window.confirm("Delete this entry? This can't be undone.")) {
-      onDelete();
-    }
-  }
 
   return (
     <article className="break-inside-avoid mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 flex flex-col gap-3 shadow-lg shadow-black/20">
@@ -54,24 +48,13 @@ export default function PhotoEntryCard({
           <p className="truncate text-sm font-semibold text-white">{entry.username}</p>
           <p className="text-xs text-white/40">{formatRelativeTime(entry.createdAt)}</p>
         </div>
-        {canManage && (
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              onClick={onEdit}
-              className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-white/80 transition-colors"
-              aria-label="Edit entry"
-            >
-              ✏️
-            </button>
-            <button
-              onClick={handleDelete}
-              className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-red-300 transition-colors"
-              aria-label="Delete entry"
-            >
-              🗑️
-            </button>
-          </div>
-        )}
+        <EntryActions
+          isOwner={isOwner}
+          isAdmin={isAdmin}
+          label="entry"
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </div>
 
       {entry.text && (

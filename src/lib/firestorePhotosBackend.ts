@@ -1,8 +1,10 @@
 import { addDoc, collection, doc, onSnapshot, orderBy, query, Timestamp, updateDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { db } from "./firebase";
 import { PhotoEntry, NewPhotoEntryInput } from "./types";
 import { getAuthorId } from "./authorTracker";
+import { resolvePhotoUrl } from "./firestorePhotoUpload";
+
+const PHOTO_PATH_PREFIX = "photo-entries";
 
 interface PhotoEntryDoc {
   username: string;
@@ -49,13 +51,7 @@ export function firestoreSubscribeToPhotoEntries(
 }
 
 export async function firestoreCreatePhotoEntry(input: NewPhotoEntryInput): Promise<void> {
-  let photoUrl: string | null = null;
-
-  if (input.photoDataUrl) {
-    const photoRef = ref(storage!, `photo-entries/${crypto.randomUUID()}`);
-    await uploadString(photoRef, input.photoDataUrl, "data_url");
-    photoUrl = await getDownloadURL(photoRef);
-  }
+  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await addDoc(collection(db!, "photoEntries"), {
     username: input.username,
@@ -72,17 +68,7 @@ export async function firestoreUpdatePhotoEntry(
   id: string,
   input: NewPhotoEntryInput
 ): Promise<void> {
-  let photoUrl: string | null;
-
-  if (input.photoDataUrl === null) {
-    photoUrl = null;
-  } else if (input.photoDataUrl.startsWith("data:")) {
-    const photoRef = ref(storage!, `photo-entries/${crypto.randomUUID()}`);
-    await uploadString(photoRef, input.photoDataUrl, "data_url");
-    photoUrl = await getDownloadURL(photoRef);
-  } else {
-    photoUrl = input.photoDataUrl;
-  }
+  const photoUrl = await resolvePhotoUrl(input.photoDataUrl, PHOTO_PATH_PREFIX);
 
   await updateDoc(doc(db!, "photoEntries", id), {
     username: input.username,

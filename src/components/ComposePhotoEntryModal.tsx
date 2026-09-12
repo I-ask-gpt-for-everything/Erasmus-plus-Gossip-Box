@@ -13,7 +13,8 @@ import {
 
 interface ComposePhotoEntryModalProps {
   onClose: () => void;
-  onSubmit: (input: NewPhotoEntryInput) => Promise<void>;
+  /** Resolves true once saved; false leaves the modal open with the draft intact. */
+  onSubmit: (input: NewPhotoEntryInput) => Promise<boolean>;
   initialValue?: PhotoEntry;
 }
 
@@ -51,14 +52,14 @@ export default function ComposePhotoEntryModal({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onSubmit({
+      const saved = await onSubmit({
         username: username.trim(),
         text: text.trim(),
         photoLink: photoLink.trim() || null,
         instagram: instagram.trim() || null,
         photoDataUrl,
       });
-      onClose();
+      if (saved) onClose();
     } finally {
       setSubmitting(false);
     }

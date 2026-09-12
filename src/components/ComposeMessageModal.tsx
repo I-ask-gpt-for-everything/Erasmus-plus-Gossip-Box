@@ -6,7 +6,8 @@ import { KindMessage, MAX_MESSAGE_LENGTH, MAX_MESSAGE_NAME_LENGTH, NewMessageInp
 
 interface ComposeMessageModalProps {
   onClose: () => void;
-  onSubmit: (input: NewMessageInput) => Promise<void>;
+  /** Resolves true once saved; false leaves the modal open with the draft intact. */
+  onSubmit: (input: NewMessageInput) => Promise<boolean>;
   initialValue?: KindMessage;
 }
 
@@ -42,8 +43,8 @@ export default function ComposeMessageModal({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onSubmit({ name: name.trim(), text: text.trim(), photoDataUrl });
-      onClose();
+      const saved = await onSubmit({ name: name.trim(), text: text.trim(), photoDataUrl });
+      if (saved) onClose();
     } finally {
       setSubmitting(false);
     }

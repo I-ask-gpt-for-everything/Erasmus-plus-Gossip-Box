@@ -144,7 +144,7 @@ checking size().
 
 `firestore.rules` and `storage.rules` are the real enforcement boundary
 when Firebase is configured — the client/UI checks are only for UX. They
-must be deployed manually (`firebase deploy --only firestore:rules,storage:rules`);
+must be deployed manually (`firebase deploy --only firestore:rules,storage`);
 editing the `.rules` files in this repo does nothing to a live Firebase
 project until redeployed. Key invariants encoded there:
 
@@ -155,15 +155,27 @@ project until redeployed. Key invariants encoded there:
 - The `admins` collection can't be written by clients at all — the first
   admin is bootstrapped manually via the Firebase console (see README
   "Admin approval" section for the exact steps).
-- `messages/{messageId}` (Kind Words) is publicly readable unless
-  `deleted == true` (in which case only an admin can still read it), and
-  has no status/moderation gate. `create` is field- and length-validated
-  the same way `posts` validates `text`, plus a required `authorId`
-  string (see "Editing and deleting" under Kind Words below for what
-  that is). `update` allows exactly two shapes: an author-or-admin
+- `messages/{messageId}` (Kind Words) is **unconditionally** publicly
+  readable — soft-deleted documents included — and has no
+  status/moderation gate. The read rule deliberately does *not* gate on
+  `deleted`: Firestore evaluates list rules against a query's potential
+  result set, so the unconstrained `orderBy('createdAt')` listen both
+  boards use is rejected outright for any reader once the rule depends on
+  a per-document field, and adding `where('deleted','==',false)` instead
+  would hide every document written before that field existed (equality
+  filters skip documents missing the field, and `update` only ever allows
+  `deleted → true`, so there's no client-side backfill). Both backends
+  filter `deleted` out of the subscription callback instead. `create` is
+  field- and length-validated the same way `posts` validates `text`, plus
+  a required `authorId` string (see "Editing and deleting" under Kind
+  Words below for what that is). `update` allows exactly two shapes: a
   content edit (`name`/`text`/`photoUrl`, same validation as create), or
   a soft-delete (`deleted` flipped to `true` only — never back to
-  `false` through this rule). `delete` (the real Firestore operation) is
+  `false` through this rule). Neither shape carries a server-side author
+  check: `authorId` is publicly readable, so any rule comparing it
+  against a client-supplied value enforces nothing — ownership is a UI
+  affordance only, and the rule's job is to constrain the *shape* of the
+  write. `delete` (the real Firestore operation) is
   still `if false` — nothing is ever hard-deleted. Storage mirrors this
   with a `message-photos/{photoId}` path (same 8MB/image-type check as
   `gossip-images/{imageId}`) in `storage.rules`; replacing or
@@ -171,22 +183,29 @@ project until redeployed. Key invariants encoded there:
   (matches this app's no-expiry, nothing-ever-really-goes-away posture
   elsewhere — `deleteObject` is intentionally unused).
 - `photoEntries/{entryId}` (Photos & Personal Info) follows the same
-  readable-unless-`deleted`, author-or-admin-update, soft-delete-only
+  unconditionally-readable, shape-validated-update, soft-delete-only
   shape as `messages`, but its `create`/content-edit validation
   additionally requires `username` plus at least one of a non-empty
   `text`, a non-empty `photoLink`, or a non-null `photoUrl` — mirroring
   the client's `canSubmit` check in `ComposePhotoEntryModal.tsx`. Storage
   mirrors this with a `photo-entries/{photoId}` path (same 8MB/image-type
   check as the other two media paths) in `storage.rules`.
-- A field check like `resource.data.get('deleted', false) != true` must
-  use `.get(key, default)`, not bare dot-access (`resource.data.deleted`)
-  — dot-accessing a field that doesn't exist on a document throws an
-  evaluation error rather than returning `null`, and an error on one
-  side of `||`/`&&` still denies the whole rule. This matters concretely
-  for every pre-existing `messages`/`photoEntries` document written
-  before the `authorId`/`deleted` fields existed: without `.get()`, the
-  read rule above would have silently denied public reads of every one
-  of them the moment it deployed.
+- A check against an optional field must use `.get(key, default)`, not
+  bare dot-access — dot-accessing a field that doesn't exist on a
+  document throws an evaluation error rather than returning `null`, and
+  an error on one side of `||`/`&&` still denies the whole rule. This
+  bites on every pre-existing `messages`/`photoEntries` document written
+  before the `authorId`/`deleted` fields existed. It's why
+  `validPhotoUrl()` is called as
+  `validPhotoUrl(request.resource.data.get('photoUrl', null))` rather
+  than passing `request.resource.data.photoUrl`: the content-edit branch
+  is reached by any write touching only `name`/`text` too, so on a
+  document that has no `photoUrl` field at all the bare access would
+  error instead of evaluating, and the edit would be denied. Note
+  that `request.resource.data` is the *merged* post-write document, so it
+  inherits this hazard from the stored document — being written in the
+  same request is what makes a field safe to dot-access, not being
+  mentioned in the rule.
 
 ## Component structure
 
@@ -298,18 +317,31 @@ it, per above); instead `KindWordsBoard`/`PhotosBoard` each subscribe to
 whenever `isOwner || isAdmin`.
 
 "Own browser" is tracked by `src/lib/authorTracker.ts`'s `getAuthorId()`
-— a `crypto.randomUUID()` persisted in `localStorage`
-(`gossipbox_author_id`), stamped onto every `KindMessage`/`PhotoEntry` as
-`authorId` at creation, and compared client-side (`entry.authorId ===
-getAuthorId()`) to compute `isOwner`. Because both collections stay
-publicly readable (see "Firestore security rules" above), this id is
-visible to anyone who reads the document — it deters accidental/casual
-cross-editing but is **not**
-cryptographically secure against a determined actor replaying the field,
-the same class of tradeoff already accepted for reactions ("no
-server-side identity to dedupe reactions by") and the local admin
-passcode. Real per-author enforcement would need Firebase Anonymous
-Auth, which was deliberately not added here as disproportionate scope.
+— a `uuid()` persisted in `localStorage` (`gossipbox_author_id`), stamped
+onto every `KindMessage`/`PhotoEntry` as `authorId` at creation, and
+compared client-side (`entry.authorId === getAuthorId()`) to compute
+`isOwner`. That comparison is the **only** place ownership is checked:
+`firestore.rules` has no server-side counterpart, deliberately, because
+both collections stay publicly readable (see "Firestore security rules"
+above) — the id is visible to anyone who reads the document, so a rule
+comparing it against a client-supplied value would enforce nothing while
+looking like it did. So it's a UI affordance that prevents
+accidental/casual cross-editing and nothing more, the same class of
+tradeoff already accepted for reactions ("no server-side identity to
+dedupe reactions by") and the local admin passcode. Real per-author
+enforcement would need Firebase Anonymous Auth, which was deliberately
+not added here as disproportionate scope.
+
+Two footguns in `getAuthorId()` that the guards there exist for: both
+`localStorage` accesses are wrapped in `try`/`catch` (a browser with site
+data blocked throws on the access itself, and both boards call this
+during render, so an exception takes the whole page down), and it uses
+`uuid()` rather than `crypto.randomUUID()`, which is `undefined` outside
+a secure context — i.e. when testing over plain http from a phone. It
+returns `""` on the server, which is also what a pre-`authorId` document
+backfills to, so `isOwner` comparisons must reject the empty id
+(`!!myAuthorId && entry.authorId === myAuthorId`) rather than let
+`"" === ""` grant edit rights over every legacy entry.
 
 "Delete" (`deleteMessage`/`deletePhotoEntry` in `messagesStore.ts`/
 `photosStore.ts`) is a **soft delete** — it sets `deleted: true` rather
@@ -328,9 +360,13 @@ Editing reuses the same `NewMessageInput`/`NewPhotoEntryInput` shape as
 creation: `ComposeMessageModal`/`ComposePhotoEntryModal` take an optional
 `initialValue` prop that seeds form state (including the photo preview,
 straight from the existing `photoUrl`) and swaps the header/button copy
-to "Edit…"/"Save changes". The Firestore backends resolve the submitted
-photo field into one of three outcomes — `null` clears it, a `data:`
-URL means a fresh pick (upload it, same as create), anything else is the
-untouched existing `https://` URL (pass through, no re-upload). Replaced
-or removed Storage images are never cleaned up, consistent with the
-no-Storage-cleanup note above.
+to "Edit…"/"Save changes". `resolvePhotoUrl(photoDataUrl, pathPrefix)` in
+`src/lib/firestorePhotoUpload.ts` turns the submitted photo field into
+one of three outcomes — nothing (`null`, or the empty string a cleared
+field can produce) clears it, a `data:` URL means a fresh pick (upload
+it), anything else is the untouched existing `https://` URL (pass
+through, no re-upload). All four Firestore call sites go through it
+(create and update × messages and photoEntries); they used to each carry
+their own copy, so put any change to upload behaviour here rather than
+re-inlining it. Replaced or removed Storage images are never cleaned up,
+consistent with the no-Storage-cleanup note above.
