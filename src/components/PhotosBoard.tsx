@@ -17,7 +17,7 @@ export default function PhotosBoard() {
   const [entries, setEntries] = useState<PhotoEntry[]>([]);
   const [composing, setComposing] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PhotoEntry | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myAuthorId] = useState(() => getAuthorId());
 
@@ -31,18 +31,29 @@ export default function PhotosBoard() {
   }, [toast]);
 
   async function handleSubmit(input: NewPhotoEntryInput) {
-    if (editingEntry) {
-      await updatePhotoEntry(editingEntry.id, input);
-      setToast("Entry updated.");
-    } else {
-      await createPhotoEntry(input);
-      setToast("Posted! 📸");
+    try {
+      if (editingEntry) {
+        await updatePhotoEntry(editingEntry.id, input);
+        setToast({ text: "Entry updated." });
+      } else {
+        await createPhotoEntry(input);
+        setToast({ text: "Posted! 📸" });
+      }
+    } catch (error) {
+      console.error("Failed to save photo entry:", error);
+      setToast({ text: "Couldn't save — please try again.", error: true });
+      throw error;
     }
   }
 
   async function handleDelete(id: string) {
-    await deletePhotoEntry(id);
-    setToast("Entry deleted.");
+    try {
+      await deletePhotoEntry(id);
+      setToast({ text: "Entry deleted." });
+    } catch (error) {
+      console.error("Failed to delete photo entry:", error);
+      setToast({ text: "Couldn't delete — please try again.", error: true });
+    }
   }
 
   function openCompose() {
@@ -76,8 +87,14 @@ export default function PhotosBoard() {
       </header>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-neutral-800 border border-white/10 px-4 py-2 text-sm text-white shadow-lg">
-          {toast}
+        <div
+          className={`fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
+            toast.error
+              ? "bg-red-950 border-red-500/40 text-red-200"
+              : "bg-neutral-800 border-white/10 text-white"
+          }`}
+        >
+          {toast.text}
         </div>
       )}
 

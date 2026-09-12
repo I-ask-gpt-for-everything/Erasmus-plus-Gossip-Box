@@ -17,7 +17,7 @@ export default function KindWordsBoard() {
   const [messages, setMessages] = useState<KindMessage[]>([]);
   const [composing, setComposing] = useState(false);
   const [editingMessage, setEditingMessage] = useState<KindMessage | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myAuthorId] = useState(() => getAuthorId());
 
@@ -31,18 +31,29 @@ export default function KindWordsBoard() {
   }, [toast]);
 
   async function handleSubmit(input: NewMessageInput) {
-    if (editingMessage) {
-      await updateMessage(editingMessage.id, input);
-      setToast("Message updated.");
-    } else {
-      await createMessage(input);
-      setToast("Your message is up. Thank you! 💌");
+    try {
+      if (editingMessage) {
+        await updateMessage(editingMessage.id, input);
+        setToast({ text: "Message updated." });
+      } else {
+        await createMessage(input);
+        setToast({ text: "Your message is up. Thank you! 💌" });
+      }
+    } catch (error) {
+      console.error("Failed to save message:", error);
+      setToast({ text: "Couldn't save — please try again.", error: true });
+      throw error;
     }
   }
 
   async function handleDelete(id: string) {
-    await deleteMessage(id);
-    setToast("Message deleted.");
+    try {
+      await deleteMessage(id);
+      setToast({ text: "Message deleted." });
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+      setToast({ text: "Couldn't delete — please try again.", error: true });
+    }
   }
 
   function openCompose() {
@@ -72,8 +83,14 @@ export default function KindWordsBoard() {
       </header>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-neutral-800 border border-white/10 px-4 py-2 text-sm text-white shadow-lg">
-          {toast}
+        <div
+          className={`fixed top-20 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-sm shadow-lg ${
+            toast.error
+              ? "bg-red-950 border-red-500/40 text-red-200"
+              : "bg-neutral-800 border-white/10 text-white"
+          }`}
+        >
+          {toast.text}
         </div>
       )}
 
