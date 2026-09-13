@@ -11,6 +11,7 @@ interface PhotoEntryDoc {
   text: string;
   photoLink: string | null;
   instagram: string | null;
+  city?: string | null;
   photoUrl: string | null;
   createdAt: Timestamp;
   authorId?: string;
@@ -24,6 +25,7 @@ function toPhotoEntry(id: string, data: PhotoEntryDoc): PhotoEntry {
     text: data.text,
     photoLink: data.photoLink,
     instagram: data.instagram,
+    city: data.city ?? null,
     photoUrl: data.photoUrl,
     createdAt: data.createdAt?.toMillis() ?? Date.now(),
     authorId: data.authorId ?? "",
@@ -58,6 +60,7 @@ export async function firestoreCreatePhotoEntry(input: NewPhotoEntryInput): Prom
     text: input.text,
     photoLink: input.photoLink,
     instagram: input.instagram,
+    city: input.city,
     photoUrl,
     createdAt: Timestamp.fromMillis(Date.now()),
     authorId: getAuthorId(),
@@ -75,6 +78,7 @@ export async function firestoreUpdatePhotoEntry(
     text: input.text,
     photoLink: input.photoLink,
     instagram: input.instagram,
+    city: input.city,
     photoUrl,
   });
 }

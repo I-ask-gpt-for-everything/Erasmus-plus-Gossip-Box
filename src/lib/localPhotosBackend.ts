@@ -13,6 +13,7 @@ function readEntries(): PhotoEntry[] {
     if (!raw) return [];
     return (JSON.parse(raw) as PhotoEntry[]).map((e) => ({
       ...e,
+      city: e.city ?? null,
       authorId: e.authorId ?? "",
       deleted: e.deleted ?? false,
     }));
@@ -53,6 +54,7 @@ export async function localCreatePhotoEntry(input: NewPhotoEntryInput): Promise<
     text: input.text,
     photoLink: input.photoLink,
     instagram: input.instagram,
+    city: input.city,
     photoUrl: input.photoDataUrl,
     createdAt: Date.now(),
     authorId: getAuthorId(),
@@ -73,6 +75,7 @@ export async function localUpdatePhotoEntry(
   entry.text = input.text;
   entry.photoLink = input.photoLink;
   entry.instagram = input.instagram;
+  entry.city = input.city;
   entry.photoUrl = input.photoDataUrl;
   writeEntries(entries);
 }

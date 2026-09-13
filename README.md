@@ -19,7 +19,7 @@ gossip feed: named, not anonymous, and unmoderated.
   message with their name and an optional photo.
 - **Photos & Personal Info** (`/photos`) — anyone can share a username
   plus any combination of a message, a pasted photo link, an Instagram
-  handle, and/or an uploaded picture.
+  handle, the city they live in, and/or an uploaded picture.
 
 A persistent left sidebar (icon-only on mobile) links all three sections
 plus `/admin`.
@@ -137,9 +137,10 @@ the admin dashboard at all — there's nothing to moderate there yet.
 
 `/photos` is a third, similarly unmoderated board for sharing a username
 plus any combination of a message, a pasted photo link (shown as a plain
-link, not necessarily an image), an Instagram handle, and an uploaded
-picture — at least one of those besides the username is required to
-post. Live immediately, same as Kind Words: no approval step, no NSFW
+link, not necessarily an image), an Instagram handle, the city they live
+in, and an uploaded picture — at least one of a message, photo link, or
+uploaded picture is required to post (Instagram and city alone aren't
+enough). Live immediately, same as Kind Words: no approval step, no NSFW
 flag, no expiry. Stored in its own `photoEntries` Firestore collection /
 `gossipbox_photo_entries` localStorage key, uploads pictures to a
 `photo-entries/` Storage path, and also isn't part of the admin

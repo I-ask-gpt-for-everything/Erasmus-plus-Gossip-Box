@@ -46,7 +46,10 @@ export default function PhotoEntryCard({
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">{entry.username}</p>
-          <p className="text-xs text-white/40">{formatRelativeTime(entry.createdAt)}</p>
+          <p className="truncate text-xs text-white/40">
+            {entry.city && <>📍 {entry.city} · </>}
+            {formatRelativeTime(entry.createdAt)}
+          </p>
         </div>
         <EntryActions
           isOwner={isOwner}

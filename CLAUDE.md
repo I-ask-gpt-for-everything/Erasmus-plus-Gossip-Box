@@ -195,7 +195,8 @@ project until redeployed. Key invariants encoded there:
   elsewhere — `deleteObject` is intentionally unused).
 - `photoEntries/{entryId}` (Photos & Personal Info) follows the same
   unconditionally-readable, shape-validated-update, soft-delete-only
-  shape as `messages`, but its `create`/content-edit validation
+  shape as `messages`, but its `create`/content-edit validation (which
+  also allows an optional `city`, ≤60 chars)
   additionally requires `username` plus at least one of a non-empty
   `text`, a non-empty `photoLink`, or a non-null `photoUrl` — mirroring
   the client's `canSubmit` check in `ComposePhotoEntryModal.tsx`. Storage
@@ -304,10 +305,15 @@ plus *any combination* of `text`, a pasted `photoLink` (rendered as a
 plain clickable link, not necessarily an image), an `instagram` handle
 (rendered as a link to `instagram.com/<handle>`, accepting either a bare
 handle or a full URL — see `instagramHref()` in `PhotoEntryCard.tsx`),
-and/or an actual uploaded `photoUrl`. The compose form's submit button
-requires `username` plus **at least one** of `text` / `photoLink` /
-uploaded photo (see `canSubmit` in `ComposePhotoEntryModal.tsx`) — unlike
-Kind Words, where `text` alone is mandatory. `PhotoEntryCard` shows the
+the `city` they live in (plain text, shown as `📍 City` in the card's
+header subline), and/or an actual uploaded `photoUrl`. The compose form's
+submit button requires `username` plus **at least one** of `text` /
+`photoLink` / uploaded photo (see `canSubmit` in
+`ComposePhotoEntryModal.tsx`) — unlike Kind Words, where `text` alone is
+mandatory. `instagram` and `city` are extras and deliberately don't count
+toward that requirement. `city` was added after entries already existed,
+so both backends backfill it to `null` and `firestore.rules` validates
+it through `validCity(request.resource.data.get('city', null))`. `PhotoEntryCard` shows the
 uploaded photo, or an initial-letter avatar (`bg-sky-500/20` circle,
 Photos' accent color vs. Kind Words' rose) when none was attached. No
 `nsfw`, no `reactions`, no moderation `status` — entries publish

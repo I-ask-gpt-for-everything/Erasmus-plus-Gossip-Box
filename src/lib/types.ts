@@ -73,17 +73,21 @@ export const MAX_PHOTO_ENTRY_TEXT_LENGTH = 600;
 export const MAX_PHOTO_ENTRY_USERNAME_LENGTH = 60;
 export const MAX_PHOTO_LINK_LENGTH = 500;
 export const MAX_INSTAGRAM_HANDLE_LENGTH = 40;
+export const MAX_CITY_LENGTH = 60;
 
 // Photos & Personal Info board: like Kind Words, named and unmoderated, but
 // each entry can carry a pasted photo link (shown as plain text/a link,
-// not necessarily an uploadable image), an Instagram handle, and/or an
-// actual uploaded picture — any combination alongside the username.
+// not necessarily an uploadable image), an Instagram handle, the city they
+// live in, and/or an actual uploaded picture — any combination alongside the
+// username. Like `instagram`, `city` is extra info only: it doesn't count
+// toward the "at least one of text / photoLink / photo" posting requirement.
 export interface PhotoEntry {
   id: string;
   username: string;
   text: string;
   photoLink: string | null;
   instagram: string | null;
+  city: string | null;
   photoUrl: string | null;
   createdAt: number;
   authorId: string;
@@ -95,6 +99,7 @@ export interface NewPhotoEntryInput {
   text: string;
   photoLink: string | null;
   instagram: string | null;
+  city: string | null;
   photoDataUrl: string | null;
 }
 

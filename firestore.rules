@@ -28,6 +28,12 @@ service cloud.firestore {
       return url == null || (url is string && url.size() <= 500);
     }
 
+    // photoEntries' optional `city`. Callers pass .get('city', null): entries
+    // written before the field existed don't have the key at all.
+    function validCity(city) {
+      return city == null || (city is string && city.size() <= 60);
+    }
+
     match /posts/{postId} {
       // A post is publicly visible only once approved; admins can also read
       // pending/rejected posts for the moderation queue.
@@ -147,7 +153,7 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if request.resource.data.keys().hasOnly(
-                        ['username', 'text', 'photoLink', 'instagram', 'photoUrl', 'createdAt', 'authorId']
+                        ['username', 'text', 'photoLink', 'instagram', 'city', 'photoUrl', 'createdAt', 'authorId']
                       )
                       && request.resource.data.username is string
                       && request.resource.data.username.size() > 0
@@ -160,6 +166,7 @@ service cloud.firestore {
                       && (request.resource.data.instagram == null
                           || (request.resource.data.instagram is string
                               && request.resource.data.instagram.size() <= 40))
+                      && validCity(request.resource.data.get('city', null))
                       && validMediaUrl(request.resource.data.get('photoUrl', null))
                       && (request.resource.data.text.size() > 0
                           || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)
@@ -168,7 +175,7 @@ service cloud.firestore {
                       && request.resource.data.authorId.size() > 0
                       && request.resource.data.authorId.size() <= 100;
 
-      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'text', 'photoLink', 'instagram', 'photoUrl'])
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'text', 'photoLink', 'instagram', 'city', 'photoUrl'])
                           && request.resource.data.username is string
                           && request.resource.data.username.size() > 0
                           && request.resource.data.username.size() <= 60
@@ -180,6 +187,7 @@ service cloud.firestore {
                           && (request.resource.data.instagram == null
                               || (request.resource.data.instagram is string
                                   && request.resource.data.instagram.size() <= 40))
+                          && validCity(request.resource.data.get('city', null))
                           && validMediaUrl(request.resource.data.get('photoUrl', null))
                           && (request.resource.data.text.size() > 0
                               || (request.resource.data.photoLink != null && request.resource.data.photoLink.size() > 0)

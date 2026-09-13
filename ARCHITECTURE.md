@@ -113,7 +113,7 @@ All types live in `src/lib/types.ts`.
 | `GossipPost` | `id, text, imageUrl, nsfw, createdAt, status, reactions, comments` | `status: "pending" \| "approved" \| "rejected"`. `reactions: Record<emoji, count>`. `comments: GossipComment[]` embedded array. |
 | `GossipComment` | `id, text, createdAt` | Anonymous (no author field), embedded on the post, not a subcollection. |
 | `KindMessage` | `id, name, photoUrl, text, createdAt, authorId, deleted?` | Named, no status, no reactions. |
-| `PhotoEntry` | `id, username, text, photoLink, instagram, photoUrl, createdAt, authorId, deleted?` | Named; needs `username` plus at least one of `text` / `photoLink` / an uploaded `photoUrl`. |
+| `PhotoEntry` | `id, username, text, photoLink, instagram, city, photoUrl, createdAt, authorId, deleted?` | Named; needs `username` plus at least one of `text` / `photoLink` / an uploaded `photoUrl`. `instagram` and `city` are optional extras that don't count toward that. Entries saved before `city` existed backfill it to `null`. |
 | `ModerationSettings` | `requireApproval` | Single doc/localStorage key, defaults to `{ requireApproval: true }`. |
 
 `REACTION_EMOJIS` (`❤️😂😮😢🔥👍`) is the fixed reaction palette — not
@@ -289,7 +289,7 @@ runs.
 |---|---|---|---|---|
 | `posts/{id}` | `status == 'approved'` OR admin | validated fields (`text`, `imageUrl` length-checked); `status` must match current `moderationRequiresApproval()` | admin: `status` only (`approved`/`rejected`); admin: `nsfw` only; anyone: `reactions` only; anyone: `comments` grows by exactly 1, new entry validated. `imageUrl` can never change after creation | never |
 | `messages/{id}` | always (soft-deleted docs included — see below) | validated fields (`name`, `text`, `photoUrl` length-checked; `authorId` required) | anyone: content edit (`name`/`text`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
-| `photoEntries/{id}` | always (soft-deleted docs included — see below) | validated fields; needs `username` + at least one of `text`/`photoLink`/`photoUrl`; `authorId` required | anyone: content edit (`username`/`text`/`photoLink`/`instagram`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
+| `photoEntries/{id}` | always (soft-deleted docs included — see below) | validated fields; needs `username` + at least one of `text`/`photoLink`/`photoUrl`; optional `city` (via `.get('city', null)`); `authorId` required | anyone: content edit (`username`/`text`/`photoLink`/`instagram`/`city`/`photoUrl`, re-validated) OR soft-delete (`deleted` → `true` only) | never (soft delete via `update`) |
 | `settings/moderation` | always | — | admin only | — |
 | `admins/{uid}` | only that uid, if signed in | never (client) | never | never |
 

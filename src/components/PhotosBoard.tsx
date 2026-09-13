@@ -88,7 +88,7 @@ export default function PhotosBoard() {
               📸 Photos & Personal Info
             </h1>
             <p className="text-xs text-white/40">
-              Share a photo link, your Instagram, or a picture — with your name on it
+              Share your city, a photo link, your Instagram, or a picture — with your name on it
             </p>
           </div>
         </div>

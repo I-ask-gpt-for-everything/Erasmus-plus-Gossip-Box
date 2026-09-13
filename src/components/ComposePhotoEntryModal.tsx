@@ -7,6 +7,7 @@ import {
   MAX_PHOTO_ENTRY_USERNAME_LENGTH,
   MAX_PHOTO_LINK_LENGTH,
   MAX_INSTAGRAM_HANDLE_LENGTH,
+  MAX_CITY_LENGTH,
   NewPhotoEntryInput,
   PhotoEntry,
 } from "@/lib/types";
@@ -28,6 +29,7 @@ export default function ComposePhotoEntryModal({
   const [text, setText] = useState(initialValue?.text ?? "");
   const [photoLink, setPhotoLink] = useState(initialValue?.photoLink ?? "");
   const [instagram, setInstagram] = useState(initialValue?.instagram ?? "");
+  const [city, setCity] = useState(initialValue?.city ?? "");
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(
     initialValue?.photoUrl ?? null
   );
@@ -57,6 +59,7 @@ export default function ComposePhotoEntryModal({
         text: text.trim(),
         photoLink: photoLink.trim() || null,
         instagram: instagram.trim() || null,
+        city: city.trim() || null,
         photoDataUrl,
       });
       if (saved) onClose();
@@ -90,6 +93,19 @@ export default function ComposePhotoEntryModal({
             value={username}
             onChange={(e) => setUsername(e.target.value.slice(0, MAX_PHOTO_ENTRY_USERNAME_LENGTH))}
             placeholder="e.g. Alex"
+            className="w-full rounded-xl bg-white/5 border border-white/10 p-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-white/50" htmlFor="photo-entry-city">
+            City you live in (optional)
+          </label>
+          <input
+            id="photo-entry-city"
+            value={city}
+            onChange={(e) => setCity(e.target.value.slice(0, MAX_CITY_LENGTH))}
+            placeholder="e.g. Berlin"
             className="w-full rounded-xl bg-white/5 border border-white/10 p-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30"
           />
         </div>
